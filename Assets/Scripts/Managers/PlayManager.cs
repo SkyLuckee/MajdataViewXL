@@ -177,7 +177,7 @@ public class PlayManager : MonoBehaviour
             switch (playmode)
             {
                 case PlaybackMode.Normal:
-                    await loader.Load(_chart,
+                    await loader.Load(_chart, commands,
                     ignoreOffset, title, artist, difficulty, _setting.LegacySlideLayer);
 
                     Majdata<AllPerfectManager>.Instance!.enabled = false;
@@ -185,7 +185,7 @@ public class PlayManager : MonoBehaviour
                     audioManager.PlayTrack();
                     break;
                 case PlaybackMode.IncludeOp:
-                    await loader.Load(_chart,
+                    await loader.Load(_chart, commands,
                     ignoreOffset, title, artist, difficulty, _setting.LegacySlideLayer);
 
                     bgManager.PlaySongDetail();
@@ -202,7 +202,7 @@ public class PlayManager : MonoBehaviour
                         throw new InvalidPathException($"maidata path is required");
                     }
 
-                    await loader.Load(_chart,
+                    await loader.Load(_chart, commands,
                     ignoreOffset, title, artist, difficulty, _setting.LegacySlideLayer);
 
                     bgManager.PlaySongDetail();

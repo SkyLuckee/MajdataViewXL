@@ -55,14 +55,14 @@ public class DataLoader : MonoBehaviour
     public Text titleTextM;
     public Text artistTextM;
     public Text designTextM;
-    // public Text bpmTextM;
+    public Text bpmTextM;
     public SpriteRenderer cardImageM;
     public SpriteRenderer LvBackgroundM;
-    // public SpriteRenderer[] TabM = new SpriteRenderer[2];
-    // public GameObject[] Modes = new GameObject[2];
+    public SpriteRenderer[] TabM = new SpriteRenderer[2];
+    public GameObject[] Modes = new GameObject[2];
     public Sprite[] cardImagesM = new Sprite[8];
     public Sprite[] LvBackgroundsM = new Sprite[8];
-    // public Sprite[] TabsM = new Sprite[8];
+    public Sprite[] TabsM = new Sprite[8];
     public Texture2D[] MLevelsM = new Texture2D[8];
     public GameObject QuestionM;
     // public GameObject TabUTGM;
@@ -233,7 +233,7 @@ public class DataLoader : MonoBehaviour
             touchIndex.Add((SensorType)i, 0);
     }
 
-    public async UniTask Load(SimaiChart chart,
+    public async UniTask Load(SimaiChart chart, IList<SimaiCommand> commands,
     double ignoreOffset, string title, string artist, int diff, bool legacySlideLayer)
     {
         titleText.text = title;
@@ -281,9 +281,29 @@ public class DataLoader : MonoBehaviour
         titleTextM.text = title;
         artistTextM.text = artist;
         designTextM.text = chart.Designer;
-        // bpmTextM.text = "BPM " + loadedData.WholeBpm;
+        bpmTextM.text = "BPM " + chart.NoteTimings[0].Bpm;
         cardImageM.sprite = cardImagesM[diff];
         LvBackgroundM.sprite = LvBackgroundsM[diff];
+        
+        var chartMode = "DX";
+        var chartModeCommand = commands.FirstOrDefault(c => c.Prefix == "chart_mode");
+        if (chartModeCommand != default) chartMode = chartModeCommand.Value;
+
+        if (diff != 6)
+        {
+            if (chartMode == "STD")
+            {
+                Modes[0].SetActive(true);
+                Modes[1].SetActive(false);
+                TabM[0].sprite = TabsM[diff];
+            }
+            else
+            {
+                Modes[0].SetActive(false);
+                Modes[1].SetActive(true);
+                TabM[1].sprite = TabsM[diff];
+            }
+        }
 
         QuestionM.SetActive(chart.Level.EndsWith('?'));
         chart.Level = chart.Level.Replace("?", "");

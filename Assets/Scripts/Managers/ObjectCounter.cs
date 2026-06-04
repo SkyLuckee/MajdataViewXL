@@ -750,33 +750,34 @@ public class ObjectCounter : MonoBehaviour
         if (CurrentUIType is UIType.Legacy)
         {
             objectCount.text = string.Format(
-                "TAP: {0} / {5}\n" +
-                "HOD: {1} / {6}\n" +
-                "SLD: {2} / {7}\n" +
-                "TOH: {3} / {8}\n" +
-                "BRK: {4} / {9}\n" +
-                "ALL: {10} / {11}\n" +
-                "MOD: {12}",
+                "TAP:   {0} / {5}\n" +
+                "HOLD:  {1} / {6}\n" +
+                "SLIDE: {2} / {7}\n" +
+                "TOUCH: {3} / {8}\n" +
+                "BREAK: {4} / {9}\n" +
+                "ALL:   {10}\n",// {11}\n +
+                //"MOD:   {11}",
                 TapFinishedCount, HoldFinishedCount, SlideFinishedCount, TouchFinishedCount, BreakFinishedCount,
                 TapSum, HoldSum, SlideSum, TouchSum, BreakSum,
-                NoteFinishedCount, NoteSum,
-                Majdata<InputManager>.Instance!.Mode
+                NoteSum //NoteFinishedCount,
+                //Majdata<InputManager>.Instance!.Mode
             );
 
             objectRate.text = string.Format(
-                "FiNALE  Rate:\n" +
-                $"{ClassicRateFromCount:000.00}   %\n" +
+                // "FiNALE  Rate:\n" +
+                // $"{ClassicRateFromCount:000.00}   %\n" +
                 "DELUXE Rate:\n" +
-                $"{DeluxeRateFromCount:000.0000} % "
+                $"{DeluxeRateFromCount:000.0000} % \n\n" +
+                "Combo: " + $"{NoteFinishedCount}"
             );
 
             judgeResultCount.text = $"{cPerfectCount}\n" +
                                     $"{perfectCount}\n" +
                                     $"{greatCount}\n" +
                                     $"{goodCount}\n" +
-                                    $"{missCount}\n\n" +
-                                    $"{fastCount}\n" +
-                                    $"{lateCount}";
+                                    $"{missCount}\n\n";
+                                    // $"{fastCount}\n" +
+                                    // $"{lateCount}";
         }
         else
         {
@@ -828,7 +829,7 @@ public class ObjectCounter : MonoBehaviour
         var second = timeNowInt - 60 * minute;
         double milli = (ctime - timeNowInt) * 10000;
 
-        // Make timing display "cleaner" on negative timing.
+        // Use Monospace font to align the display
         string target;
         if (ctime < 0)
         {
@@ -839,7 +840,7 @@ public class ObjectCounter : MonoBehaviour
         }
         else
         {
-            target = string.Format("{0}:{1:00}.{2:0000}", minute, second, milli);
+            target = string.Format(" {0}:{1:00}.{2:000}", minute, second, milli / 10);
         }
 
         if (CurrentUIType == UIType.Legacy)

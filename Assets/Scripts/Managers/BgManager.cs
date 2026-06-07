@@ -21,6 +21,8 @@ public class BgManager : MonoBehaviour
 
     private RawImage jacketImage;
     private GameObject songDetail;
+    private SpriteRenderer jacketImageM;
+    private GameObject songDetailM;
     private Animator detailAnim;
     private SpriteRenderer spriteRender;
     private VideoPlayer videoPlayer;
@@ -45,14 +47,14 @@ public class BgManager : MonoBehaviour
     {
         timeProvider = Majdata<TimeProvider>.Instance!;
 
-        jacketImage = GameObject.Find("Jacket").GetComponent<RawImage>();
-        songDetail = GameObject.Find("CanvasSongDetail");
-        songDetail.SetActive(false);
+        jacketImageM = GameObject.Find("JacketM").GetComponent<SpriteRenderer>();
+        songDetailM = GameObject.Find("CanvasSongDetailM");
+        songDetailM.SetActive(false);
 
         originalScaleX = gameObject.transform.localScale.x;
         spriteRender = GetComponent<SpriteRenderer>();
         videoPlayer = GetComponent<VideoPlayer>();
-        detailAnim = songDetail.GetComponent<Animator>();
+        detailAnim = songDetailM.GetComponent<Animator>();
     }
 
     private void Update()
@@ -78,7 +80,7 @@ public class BgManager : MonoBehaviour
 
     public void PlaySongDetail()
     {
-        songDetail.SetActive(true);
+        songDetailM.SetActive(true);
         detailAnim.SetTrigger(ShowHash);
     }
 
@@ -91,12 +93,12 @@ public class BgManager : MonoBehaviour
     {
         if (Bg == null || !hasBg)
         {
-            jacketImage.texture = bgDummy.texture;
+            jacketImageM.sprite = bgDummy;
             spriteRender.sprite = defaultBg;
             return;
         }
 
-        jacketImage.texture = Bg.texture;
+        jacketImageM.sprite = Bg;
         spriteRender.sprite = Bg;
         var scale = 1140f / Bg.texture.width;
         gameObject.transform.localScale = new Vector3(scale, scale, scale);
@@ -150,7 +152,7 @@ public class BgManager : MonoBehaviour
         spriteRender.sprite = defaultBg;
         smoothRDelta = 0f;
 
-        if (songDetail != null)
-            songDetail.SetActive(false);
+        if (songDetailM != null)
+            songDetailM.SetActive(false);
     }
 }

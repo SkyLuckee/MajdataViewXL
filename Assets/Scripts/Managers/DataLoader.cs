@@ -304,6 +304,11 @@ public class DataLoader : MonoBehaviour
                 TabM[1].sprite = TabsM[diff];
             }
         }
+        else
+        {
+            Modes[0].SetActive(false);
+            Modes[1].SetActive(false);
+        }
 
         QuestionM.SetActive(chart.Level.EndsWith('?'));
         chart.Level = chart.Level.Replace("?", "");

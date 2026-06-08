@@ -26,6 +26,8 @@ public class BgManager : MonoBehaviour
     private Animator detailAnim;
     private SpriteRenderer spriteRender;
     private VideoPlayer videoPlayer;
+    public Material Circle;
+    public Material Square;
 
     private float smoothRDelta;
     private float originalScaleX;
@@ -129,7 +131,8 @@ public class BgManager : MonoBehaviour
             videoPlayer.time = timeProvider.AudioTime;
 
             var scale = videoPlayer.height / (float)videoPlayer.width;
-            gameObject.transform.localScale = new Vector3(originalScaleX, originalScaleX * scale);
+            gameObject.transform.localScale = new Vector3(1.616f*originalScaleX, 1.616f*originalScaleX * scale);
+            spriteRender.material = Square;
         }
     }
 
@@ -149,6 +152,7 @@ public class BgManager : MonoBehaviour
     {
         videoPlayer.Stop();
         gameObject.transform.localScale = new Vector3(1.1f, 1.1f, 1.1f);
+        spriteRender.material = Circle;
         spriteRender.sprite = defaultBg;
         smoothRDelta = 0f;
 

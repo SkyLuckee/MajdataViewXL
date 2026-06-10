@@ -7,6 +7,8 @@ using MajSimai;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
+using static MajCtx;
+
 #endregion
 
 public class TapBase : NoteBase
@@ -22,13 +24,6 @@ public class TapBase : NoteBase
     protected void PreLoad()
     {
         var notes = GameObject.Find("Notes").transform;
-        noteManager = Majdata<NoteManager>.Instance!;
-        timeProvider = Majdata<TimeProvider>.Instance!;
-        objectCounter = Majdata<ObjectCounter>.Instance!;
-        inputManager = Majdata<InputManager>.Instance!;
-        skinManager = Majdata<SkinManager>.Instance!;
-        audioManager = Majdata<AudioManager>.Instance!;
-
         tapLine = Instantiate(tapLine, notes);
         tapLine.SetActive(false);
 
@@ -42,7 +37,7 @@ public class TapBase : NoteBase
 
     protected void FixedUpdate()
     {
-        var timing = timeProvider.NoteTime - time;
+        var timing = _timeProvider.NoteTime - time;
         if (isMine && !isJudged && timing >= 0.016667f)
         {
             judgeResult = JudgeType.Perfect;
@@ -60,7 +55,7 @@ public class TapBase : NoteBase
         }
         else if (timing >= -0.01f)
         {
-            switch (Majdata<InputManager>.Instance!.Mode)
+            switch (_inputManager.Mode)
             {
                 case AutoPlayMode.Enable:
                     if (isMine)
@@ -90,7 +85,7 @@ public class TapBase : NoteBase
                         break;
                     //mine就不打了
                     if (!isMine)
-                        inputManager.ClickArea(sensor);
+                        _inputManager.ClickArea(sensor);
                     isTriggered = true;
                     break;
             }
@@ -100,11 +95,11 @@ public class TapBase : NoteBase
     // Update is called once per frame
     protected virtual void Update()
     {
-        var timing = timeProvider.NoteTime - time;
+        var timing = _timeProvider.NoteTime - time;
         var distance = timing * speed + 4.8f;
         var destScale = distance * 0.4f + 0.51f;
 
-        var fakeTiming = timeProvider.FakeNoteTime - timeProvider.GetPositionAtTime(time);
+        var fakeTiming = _timeProvider.FakeNoteTime - _timeProvider.GetPositionAtTime(time);
         var fakeDistance = fakeTiming * speed + 4.8f;
         var fakeDestScale = fakeDistance * 0.4f + 0.51f;
 
@@ -159,7 +154,7 @@ public class TapBase : NoteBase
         if (isEx) exSpriteRender.forceRenderingOff = false;
         if (isBreak)
         {
-            var extra = Math.Max(Mathf.Sin(timeProvider.GetFrame() * 0.17f) * 0.5f, 0);
+            var extra = Math.Max(Mathf.Sin(_timeProvider.GetFrame() * 0.17f) * 0.5f, 0);
             spriteRenderer.material.SetFloat("_Brightness", 0.95f + extra);
         }
     }
@@ -168,16 +163,16 @@ public class TapBase : NoteBase
     {
         if (arg.Type != sensor)
             return;
-        if (isJudged || !noteManager.CanJudge(gameObject, startPosition))
+        if (isJudged || !_noteManager.CanJudge(gameObject, startPosition))
             return;
-        if (Majdata<InputManager>.Instance!.Mode is AutoPlayMode.Enable or AutoPlayMode.Random)
+        if (_inputManager.Mode is AutoPlayMode.Enable or AutoPlayMode.Random)
             return;
 
         if (arg.IsClick)
         {
-            if (!inputManager.IsIdle(arg))
+            if (!_inputManager.IsIdle(arg))
                 return;
-            inputManager.SetBusy(arg);
+            _inputManager.SetBusy(arg);
 
             Judge();
         }
@@ -197,7 +192,7 @@ public class TapBase : NoteBase
         if (isJudged)
             return;
 
-        var timing = timeProvider.NoteTime - time;
+        var timing = _timeProvider.NoteTime - time;
         var isFast = timing < 0;
         var diff = MathF.Abs(timing * 1000);
         JudgeType result;
@@ -240,7 +235,7 @@ public class TapBase : NoteBase
     {
         if (!isMine)
         {
-            audioManager.PlayTapSound(judgeResult, isEx, isBreak);
+            _audioManager.PlayTapSound(judgeResult, isEx, isBreak);
         }
         Destroy(tapLine);
         Destroy(gameObject);
@@ -248,11 +243,10 @@ public class TapBase : NoteBase
     protected virtual void OnDestroy()
     {
         if (PlayManager.IsReloading) return;
-        var effectManager = Majdata<EffectManager>.Instance!;
-        effectManager.PlayEffect(startPosition, isBreak, judgeResult);
-        effectManager.PlayFastLate(startPosition, judgeResult);
-        noteManager.NextNote(startPosition);
-        objectCounter.ReportResult(SimaiNoteType.Tap, judgeResult, isBreak);
-        inputManager.UnbindArea(Check, sensor);
+        _effectManager.PlayEffect(startPosition, isBreak, judgeResult);
+        _effectManager.PlayFastLate(startPosition, judgeResult);
+        _noteManager.NextNote(startPosition);
+        _objectCounter.ReportResult(SimaiNoteType.Tap, judgeResult, isBreak);
+        _inputManager.UnbindArea(Check, sensor);
     }
 }

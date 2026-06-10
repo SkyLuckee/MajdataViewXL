@@ -5,11 +5,12 @@
 using System;
 using UnityEngine;
 
+using static MajCtx;
+
 #endregion
 
 public class BreakShineController : MonoBehaviour
 {
-    TimeProvider timeProvider;
     
     public ICanShine? parent;
 
@@ -23,8 +24,6 @@ public class BreakShineController : MonoBehaviour
     
     private void Start()
     {
-        timeProvider = Majdata<TimeProvider>.Instance!;
-        
         spriteRenderer = GetComponent<SpriteRenderer>();
     }
 
@@ -32,7 +31,7 @@ public class BreakShineController : MonoBehaviour
     {
         if (parent == null || !parent.CanShine()) return;
         
-        var extra = Math.Max(Mathf.Sin(timeProvider.GetFrame() * 0.17f) * 0.5f, 0);
+        var extra = Math.Max(Mathf.Sin(_timeProvider.GetFrame() * 0.17f) * 0.5f, 0);
             
         spriteRenderer.GetPropertyBlock(_mpb);
         _mpb.SetFloat("_Brightness", 0.95f + extra);

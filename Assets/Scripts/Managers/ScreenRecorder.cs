@@ -7,13 +7,12 @@ using JetBrains.Annotations;
 using UnityEngine;
 using UnityEngine.UI;
 
+using static MajCtx;
+
 #endregion
 
 public class ScreenRecorder : MonoBehaviour
 {
-    TimeProvider timeProvider;
-    BgManager bgManager;
-    AudioManager audioManager;
 
     Text errText;
 
@@ -21,14 +20,11 @@ public class ScreenRecorder : MonoBehaviour
 
     private void Awake()
     {
-        Majdata<ScreenRecorder>.Instance = this;
+        _screenRecorder = this;
     }
 
     private void Start()
     {
-        timeProvider = Majdata<TimeProvider>.Instance!;
-        bgManager = Majdata<BgManager>.Instance!;
-        audioManager = Majdata<AudioManager>.Instance!;
         errText = GameObject.Find("ErrText").GetComponent<Text>();
     }
 
@@ -57,7 +53,7 @@ public class ScreenRecorder : MonoBehaviour
             errText.text = $"无法渲染：分辨率 {Screen.width}x{Screen.height} 不是偶数。";
             return;
         }
-        
+
         // 1. args
         const string wavName = "temp.wav";
         const string videoName = "temp.mp4";
@@ -106,8 +102,8 @@ public class ScreenRecorder : MonoBehaviour
 
             // 4. prepare
             onStart?.Invoke();
-            audioManager.PrepareRecordingBuffer(timeProvider.AudioTime, timeProvider.CurrentSpeed);
-            
+            _audioManager.PrepareRecordingBuffer(_timeProvider.AudioTime, _timeProvider.CurrentSpeed);
+
             while (IsRecording)
             {
                 // 5. recording
@@ -141,7 +137,7 @@ public class ScreenRecorder : MonoBehaviour
         }
 
         // 7. wav
-        audioManager.ExportFinalWav(Path.Combine(maidataPath, wavName));
+        _audioManager.ExportFinalWav(Path.Combine(maidataPath, wavName));
 
         // 8. mux
         var muxCmd = $"cd \"{maidataPath}\" && ffmpeg {muxArgs}";
@@ -159,29 +155,29 @@ public class ScreenRecorder : MonoBehaviour
             OpenFileLocation(outPath);
         }
 
-        timeProvider.Pause();
-        bgManager.PauseVideo();
+        _timeProvider.Pause();
+        _bgManager.PauseVideo();
     }
 
     private void ProcessSfx(float deltaTime, float recordingElapsedTime, ref bool isTouchHoldRising)
     {
-        if (audioManager.IsShowingSongDetail)
+        if (_audioManager.IsShowingSongDetail)
             return;
 
-        audioManager.UpdateAnswerSfx();
-        for (var i = 0; i < AudioManager.noteSfxPlaybackRequests.Length; i++)
+        _audioManager.UpdateAnswerSfx();
+        for (var i = 0; i < _audioManager.noteSfxPlaybackRequests.Length; i++)
         {
             if (i == AudioManager.TRACK_START) continue;
 
             if (i == AudioManager.TOUCHHOLD)
             {
-                var isRequested = AudioManager.noteSfxPlaybackRequests[i];
+                var isRequested = _audioManager.noteSfxPlaybackRequests[i];
                 if (isRequested)
                 {
                     if (!isTouchHoldRising)
                     {
                         isTouchHoldRising = true;
-                        audioManager.TriggerSfxRecording(AudioManager.TOUCHHOLD);
+                        _audioManager.TriggerSfxRecording(AudioManager.TOUCHHOLD);
                     }
                 }
                 else
@@ -189,17 +185,17 @@ public class ScreenRecorder : MonoBehaviour
                     if (isTouchHoldRising)
                     {
                         isTouchHoldRising = false;
-                        audioManager.StopSfxRecording(AudioManager.TOUCHHOLD);
+                        _audioManager.StopSfxRecording(AudioManager.TOUCHHOLD);
                     }
                 }
             }
-            else if (AudioManager.noteSfxPlaybackRequests[i])
+            else if (_audioManager.noteSfxPlaybackRequests[i])
             {
-                audioManager.TriggerSfxRecording(i);
-                AudioManager.noteSfxPlaybackRequests[i] = false;
+                _audioManager.TriggerSfxRecording(i);
+                _audioManager.noteSfxPlaybackRequests[i] = false;
             }
         }
-        audioManager.UpdateSfxRecording(deltaTime, recordingElapsedTime);
+        _audioManager.UpdateSfxRecording(deltaTime, recordingElapsedTime);
     }
 
     private static void OpenFileLocation(string filePath)

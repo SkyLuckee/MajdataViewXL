@@ -7,6 +7,8 @@ using System.IO.MemoryMappedFiles;
 using MajSimai;
 using UnityEngine;
 
+using static MajCtx;
+
 #endregion
 
 public class TimeProvider : MonoBehaviour
@@ -41,13 +43,24 @@ public class TimeProvider : MonoBehaviour
 
     private void Awake()
     {
-        Majdata<TimeProvider>.Instance = this;
-        
-        try { if (File.Exists(mmfAudioTimePath)) File.Delete(mmfAudioTimePath); }
-        catch (IOException) { }
-        
-        mmfAudioTime = MemoryMappedFile.CreateFromFile(mmfAudioTimePath, 
-            FileMode.Create, null, sizeof(float));
+        _timeProvider = this;
+
+        var mmfAudioTimeFileStream = new FileStream(
+            mmfAudioTimePath,
+            FileMode.OpenOrCreate,
+            FileAccess.ReadWrite,
+            FileShare.ReadWrite
+        );
+
+        mmfAudioTime = MemoryMappedFile.CreateFromFile(
+            mmfAudioTimeFileStream,
+            null,
+            sizeof(float),
+            MemoryMappedFileAccess.ReadWrite,
+            HandleInheritability.None,
+            false
+        );
+
         mmvAudioTime = mmfAudioTime.CreateViewAccessor();
     }
 
@@ -65,7 +78,7 @@ public class TimeProvider : MonoBehaviour
             AudioTime = startAt + accumulated + (Time.realtimeSinceStartup - startRealtime) * speed;
             NoteTime = AudioTime - offset;
         }
-        
+
         mmvAudioTime.Write(0, AudioTime);
     }
 

@@ -5,19 +5,21 @@
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 
+using static MajCtx;
+
 #endregion
 
 public class AllPerfectManager : MonoBehaviour
 {
+    private static readonly int PlayAllPerfectHash = Animator.StringToHash("playAllPerfect");
     [SerializeField]
-    Animator AllPerfect;
+    private Animator AllPerfect;
 
     private bool isPlayed;
 
     private void Awake()
     {
-        Majdata<AllPerfectManager>.Instance = this;
-        AllPerfect.gameObject.SetActive(false);
+        _allPerfectManager = this;
     }
 
     private void Start()
@@ -30,21 +32,21 @@ public class AllPerfectManager : MonoBehaviour
         if (PlayManager.Summary.State is not ViewStatus.Playing)
             return;
 
-        if (Majdata<ObjectCounter>.Instance!.AllFinished)
+        if (_objectCounter.AllFinished)
         {
             if (isPlayed)
             {
                 if (!AllPerfect.gameObject.activeSelf)
                 {
-                    Majdata<PlayManager>.Instance!.StopAsync().Forget();
-                    Majdata<WsServer>.Instance!.SendStopResponse();
+                    _playManager.StopAsync().Forget();
+                    _wsServer.SendStopResponse();
                 }
             }
             else
             {
                 AllPerfect.gameObject.SetActive(true);
-                AllPerfect.SetTrigger("playAllPerfect");
-                AudioManager.noteSfxPlaybackRequests[AudioManager.ALL_PERFECT] = true;
+                AllPerfect.SetTrigger(PlayAllPerfectHash);
+                _audioManager.noteSfxPlaybackRequests[AudioManager.ALL_PERFECT] = true;
                 isPlayed = true;
             }
         }

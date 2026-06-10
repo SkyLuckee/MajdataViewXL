@@ -16,16 +16,18 @@ using WebSocketSharp;
 using WebSocketSharp.Server;
 using Debug = UnityEngine.Debug;
 
+using static MajCtx;
+
 #endregion
 
-internal class WsServer : MonoBehaviour
+public class WsServer : MonoBehaviour
 {
     public static readonly ConcurrentQueue<string> MessageQueue = new();
     private WebSocketServer? webSocket;
 
     private void Awake()
     {
-        Majdata<WsServer>.Instance = this;
+        _wsServer = this;
     }
 
     // 这里是游戏及游戏外部的初始化
@@ -52,7 +54,7 @@ internal class WsServer : MonoBehaviour
         {
             if (MessageQueue.TryDequeue(out var json))
             {
-                while (Majdata<PlayManager>.Instance == null)
+                while (_playManager == null)
                     await UniTask.Yield();
 
                 Debug.Log($"dequeue: {json}");
@@ -67,7 +69,6 @@ internal class WsServer : MonoBehaviour
 
     private async UniTask HandleMessageAsync(string json)
     {
-        var playManager = Majdata<PlayManager>.Instance!;
         try
         {
             var req = JsonConvert.DeserializeObject<MajWsRequestBase>(json);
@@ -77,7 +78,7 @@ internal class WsServer : MonoBehaviour
                 case MajWsRequestType.Setting:
                     {
                         var payload = JsonConvert.DeserializeObject<MajWsRequestSetting>(payloadJson);
-                        playManager.Setting(payload.ViewSetting, payload.VolumeSetting);
+                        _playManager.Setting(payload.ViewSetting, payload.VolumeSetting);
                         Response(MajWsResponseType.Ok, PlayManager.Summary);
                         Debug.Log("dequeued: Setting");
                     }
@@ -85,7 +86,7 @@ internal class WsServer : MonoBehaviour
                 case MajWsRequestType.Load:
                     {
                         var payload = JsonConvert.DeserializeObject<MajWsRequestLoad>(payloadJson);
-                        await playManager.LoadAsync(payload.TrackPath, payload.ImagePath, payload.VideoPath);
+                        await _playManager.LoadAsync(payload.TrackPath, payload.ImagePath, payload.VideoPath);
                         Response(MajWsResponseType.LoadOk, PlayManager.Summary);
                         Debug.Log("dequeued: Load");
                     }
@@ -93,7 +94,7 @@ internal class WsServer : MonoBehaviour
                 case MajWsRequestType.Play:
                     {
                         var payload = JsonConvert.DeserializeObject<MajWsRequestPlay>(payloadJson);
-                        await playManager.PlayAsync(payload.Mode,
+                        await _playManager.PlayAsync(payload.Mode,
                             payload.StartAt, payload.Speed,
                             payload.Title, payload.Artist, payload.Offset,
                             payload.Designer, payload.Level, payload.Fumen,
@@ -105,23 +106,23 @@ internal class WsServer : MonoBehaviour
                     break;
                 case MajWsRequestType.Resume:
                     {
-                        if (Majdata<ScreenRecorder>.Instance!.IsRecording) return;
-                        await playManager.ResumeAsync();
+                        if (_screenRecorder.IsRecording) return;
+                        await _playManager.ResumeAsync();
                         Response(MajWsResponseType.PlayResumed, PlayManager.Summary);
                         Debug.Log("dequeued: Resume");
                     }
                     break;
                 case MajWsRequestType.Pause:
                     {
-                        if (Majdata<ScreenRecorder>.Instance!.IsRecording) return;
-                        await playManager.PauseAsync();
+                        if (_screenRecorder.IsRecording) return;
+                        await _playManager.PauseAsync();
                         Response(MajWsResponseType.PlayPaused, PlayManager.Summary);
                         Debug.Log("dequeued: Pause");
                     }
                     break;
                 case MajWsRequestType.Stop:
                     {
-                        await playManager.StopAsync();
+                        await _playManager.StopAsync();
                         Response(MajWsResponseType.PlayStopped, PlayManager.Summary);
                         Debug.Log("dequeued: Stop");
                     }

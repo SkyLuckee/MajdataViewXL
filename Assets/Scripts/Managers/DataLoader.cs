@@ -11,13 +11,12 @@ using System.Text;
 using System.Text.RegularExpressions;
 using TMPro;
 
+using static MajCtx;
+
 #endregion
 
 public class DataLoader : MonoBehaviour
 {
-    private SkinManager skinManager;
-    private ObjectCounter objectCounter;
-    NoteManager noteManager;
 
     public float noteSpeed = 7f;
     public float touchSpeed = 7.5f;
@@ -218,14 +217,11 @@ public class DataLoader : MonoBehaviour
 
     private void Awake()
     {
-        Majdata<DataLoader>.Instance = this;
+        _dataLoader = this;
     }
 
     private void Start()
     {
-        objectCounter = Majdata<ObjectCounter>.Instance!;
-        skinManager = Majdata<SkinManager>.Instance!;
-        noteManager = Majdata<NoteManager>.Instance!;
         errText = GameObject.Find("ErrText").GetComponent<Text>();
         for (var i = 1; i < 9; i++)
             noteIndex.Add(i, 0);
@@ -313,12 +309,80 @@ public class DataLoader : MonoBehaviour
         QuestionM.SetActive(chart.Level.EndsWith('?'));
         chart.Level = chart.Level.Replace("?", "");
 
-        objectCounter.CountNoteSumAsync(chart).Forget();
-        objectCounter.ReportMeterBpmAsync(chart).Forget();
+        //MaiUI
+        levelTextM.spriteAsset.spriteSheet = MLevelsM[diff];
+        levelTextM.spriteAsset.material.SetTexture("_MainTex", MLevelsM[diff]);
 
-        Majdata<TimeProvider>.Instance!.LoadSV(chart.CommaTimings);
+        StringBuilder sb = new();
+        if (chart.Level.Length == 1)
+        {
+            sb.Append("<space=1>");
+        }
+        foreach (var item in chart.Level)
+        {
+            if (int.TryParse(item.ToString(), out int lv))
+                sb.Append($"<sprite={lv}>");
+            else
+            {
+                switch (item)
+                {
+                    case '+':
+                        sb.Append("<sprite=10>");
+                        break;
+                    case '-':
+                        sb.Append("<sprite=11>");
+                        break;
+                    case ',':
+                        sb.Append("<sprite=12>");
+                        break;
+                    case '.':
+                        sb.Append("<sprite=13>");
+                        break;
+                }
+            }
+        }
+        levelTextM.text = sb.ToString();
+        titleTextM.text = title;
+        artistTextM.text = artist;
+        designTextM.text = chart.Designer;
+        bpmTextM.text = "BPM " + chart.NoteTimings[0].Bpm;
+        cardImageM.sprite = cardImagesM[diff];
+        LvBackgroundM.sprite = LvBackgroundsM[diff];
+        
+        var chartMode = "DX";
+        var chartModeCommand = commands.FirstOrDefault(c => c.Prefix == "chart_mode");
+        if (chartModeCommand != default) chartMode = chartModeCommand.Value;
 
-        noteManager.ResetIndex();
+        if (diff != 6)
+        {
+            if (chartMode == "STD")
+            {
+                Modes[0].SetActive(true);
+                Modes[1].SetActive(false);
+                TabM[0].sprite = TabsM[diff];
+            }
+            else
+            {
+                Modes[0].SetActive(false);
+                Modes[1].SetActive(true);
+                TabM[1].sprite = TabsM[diff];
+            }
+        }
+        else
+        {
+            Modes[0].SetActive(false);
+            Modes[1].SetActive(false);
+        }
+
+        QuestionM.SetActive(chart.Level.EndsWith('?'));
+        chart.Level = chart.Level.Replace("?", "");
+
+        _objectCounter.CountNoteSumAsync(chart).Forget();
+        _objectCounter.ReportMeterBpmAsync(chart).Forget();
+
+        _timeProvider.LoadSV(chart.CommaTimings);
+
+        _noteManager.ResetIndex();
         streamingRunning = true;
         var timings = chart.NoteTimings.ToArray();
         await StreamingCreate(timings, ignoreOffset);
@@ -330,7 +394,7 @@ public class DataLoader : MonoBehaviour
 
         while (i < timings.Length && timings[i].Timing < ignoreOffset)
         {
-            objectCounter
+            _objectCounter
                 .CountIgnoreNoteCountAsync(timings[i].Notes)
                 .Forget();
 
@@ -392,8 +456,7 @@ public class DataLoader : MonoBehaviour
 
     private double GetStreamingTime(double fallbackTime)
     {
-        var timeProvider = Majdata<TimeProvider>.Instance!;
-        return timeProvider.IsStart ? timeProvider.NoteTime : fallbackTime;
+        return _timeProvider.IsStart ? _timeProvider.NoteTime : fallbackTime;
     }
 
     private async UniTask LoadTiming(SimaiTimingPoint timing)
@@ -435,7 +498,7 @@ public class DataLoader : MonoBehaviour
                 NDCompo.startPosition = note.StartPosition;
                 NDCompo.speed = noteSpeed * timing.HSpeed;
 
-                noteManager.AddNote(NDCompo, noteIndex[note.StartPosition]++);
+                _noteManager.AddNote(NDCompo, noteIndex[note.StartPosition]++);
             }
             else if (note.Type == SimaiNoteType.Hold)
             {
@@ -457,7 +520,7 @@ public class DataLoader : MonoBehaviour
                 NDCompo.usingSV = note.UsingSV;
                 NDCompo.tapLine = tapLine;
 
-                noteManager.AddNote(NDCompo, noteIndex[note.StartPosition]++);
+                _noteManager.AddNote(NDCompo, noteIndex[note.StartPosition]++);
             }
             else if (note.Type == SimaiNoteType.TouchHold)
             {
@@ -479,7 +542,7 @@ public class DataLoader : MonoBehaviour
                 NDCompo.areaPosition = note.TouchArea;
                 NDCompo.startPosition = note.StartPosition;
 
-                noteManager.AddTouch(NDCompo, touchIndex[NDCompo.GetSensor()]++);
+                _noteManager.AddTouch(NDCompo, touchIndex[NDCompo.GetSensor()]++);
             }
             else if (note.Type == SimaiNoteType.Touch)
             {
@@ -506,7 +569,7 @@ public class DataLoader : MonoBehaviour
                 NDCompo.usingSV = note.UsingSV;
                 NDCompo.GroupInfo = null;
 
-                noteManager.AddTouch(NDCompo, touchIndex[NDCompo.GetSensor()]++);
+                _noteManager.AddTouch(NDCompo, touchIndex[NDCompo.GetSensor()]++);
             }
 
             else if (note.Type == SimaiNoteType.Slide)
@@ -808,7 +871,7 @@ public class DataLoader : MonoBehaviour
         {
             var GOnote = Instantiate(starPrefab, notes.transform);
             NDCompo = GOnote.GetComponent<StarDrop>();
-            noteManager.AddNote(NDCompo, noteIndex[note.StartPosition]++);
+            _noteManager.AddNote(NDCompo, noteIndex[note.StartPosition]++);
 
             // note的图层顺序
             NDCompo.noteSortOrder = noteSortOrder;
@@ -914,7 +977,7 @@ public class DataLoader : MonoBehaviour
         {
             var GOnote = Instantiate(starPrefab, notes.transform);
             NDCompo = GOnote.GetComponent<StarDrop>();
-            noteManager.AddNote(NDCompo, noteIndex[note.StartPosition]++);
+            _noteManager.AddNote(NDCompo, noteIndex[note.StartPosition]++);
 
             // note的图层顺序
             NDCompo.noteSortOrder = noteSortOrder;

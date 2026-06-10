@@ -7,13 +7,12 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Video;
 
+using static MajCtx;
+
 #endregion
 
 public class BgManager : MonoBehaviour
 {
-    private static readonly int ShowHash = Animator.StringToHash("show");
-    private TimeProvider timeProvider;
-
     [SerializeField]
     private Sprite bgDummy;
     [SerializeField]
@@ -23,6 +22,7 @@ public class BgManager : MonoBehaviour
     private GameObject songDetail;
     private SpriteRenderer jacketImageM;
     private GameObject songDetailM;
+    private static readonly int ShowHash = Animator.StringToHash("show");
     private Animator detailAnim;
     private SpriteRenderer spriteRender;
     private VideoPlayer videoPlayer;
@@ -42,13 +42,11 @@ public class BgManager : MonoBehaviour
 
     private void Awake()
     {
-        Majdata<BgManager>.Instance = this;
+        _bgManager = this;
     }
 
     private void Start()
     {
-        timeProvider = Majdata<TimeProvider>.Instance!;
-
         jacketImageM = GameObject.Find("JacketM").GetComponent<SpriteRenderer>();
         songDetailM = GameObject.Find("CanvasSongDetailM");
         songDetailM.SetActive(false);
@@ -61,9 +59,9 @@ public class BgManager : MonoBehaviour
 
     private void Update()
     {
-        var delta = (float)videoPlayer.clockTime - timeProvider.AudioTime;
+        var delta = (float)videoPlayer.clockTime - _timeProvider.AudioTime;
         smoothRDelta += (Time.unscaledDeltaTime - smoothRDelta) * 0.01f;
-        if (timeProvider.AudioTime < 0) return;
+        if (_timeProvider.AudioTime < 0) return;
         var realSpeed = Time.deltaTime / smoothRDelta;
 
         if (Time.captureFramerate != 0)
@@ -73,11 +71,11 @@ public class BgManager : MonoBehaviour
         }
 
         if (delta < -0.01f)
-            videoPlayer.playbackSpeed = timeProvider.CurrentSpeed + 0.2f;
+            videoPlayer.playbackSpeed = _timeProvider.CurrentSpeed + 0.2f;
         else if (delta > 0.01f)
-            videoPlayer.playbackSpeed = timeProvider.CurrentSpeed - 0.2f;
+            videoPlayer.playbackSpeed = _timeProvider.CurrentSpeed - 0.2f;
         else
-            videoPlayer.playbackSpeed = timeProvider.CurrentSpeed;
+            videoPlayer.playbackSpeed = _timeProvider.CurrentSpeed;
     }
 
     public void PlaySongDetail()
@@ -125,10 +123,10 @@ public class BgManager : MonoBehaviour
             spriteRender.sprite =
                 Sprite.Create(new Texture2D(1080, 1080), new Rect(0, 0, 1080, 1080), new Vector2(0.5f, 0.5f));
 
-            while (timeProvider.AudioTime <= 0) yield return new WaitForEndOfFrame();
+            while (_timeProvider.AudioTime <= 0) yield return new WaitForEndOfFrame();
             while (!videoPlayer.isPrepared) yield return new WaitForEndOfFrame();
             videoPlayer.Play();
-            videoPlayer.time = timeProvider.AudioTime;
+            videoPlayer.time = _timeProvider.AudioTime;
 
             var scale = videoPlayer.height / (float)videoPlayer.width;
             gameObject.transform.localScale = new Vector3(1.616f*originalScaleX, 1.616f*originalScaleX * scale);

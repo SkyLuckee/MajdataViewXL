@@ -3260,7 +3260,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &393224020
 RectTransform:
   m_ObjectHideFlags: 0
@@ -12382,7 +12382,7 @@ GameObject:
   - component: {fileID: 1322747929}
   - component: {fileID: 1322747930}
   m_Layer: 0
-  m_Name: Liar Teto
+  m_Name: Teto
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -12397,7 +12397,7 @@ Transform:
   m_GameObject: {fileID: 1322747928}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -71.37, y: 38.1, z: -899.99994}
+  m_LocalPosition: {x: -72.5, y: 38.1, z: -899.99994}
   m_LocalScale: {x: 2, y: 2.2200003, z: 2.2200003}
   m_ConstrainProportionsScale: 1
   m_Children: []
@@ -12445,7 +12445,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_Sprite: {fileID: 21300000, guid: 826b00ccbe5bac745a1a1cf2de113a58, type: 3}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 0.49803922}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -12731,8 +12731,8 @@ RectTransform:
   - {fileID: 1904206639}
   - {fileID: 1311215481}
   - {fileID: 1678688327}
-  - {fileID: 1555395485}
   - {fileID: 393224020}
+  - {fileID: 1555395485}
   - {fileID: 1846285904}
   m_Father: {fileID: 616739454}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -13924,14 +13924,12 @@ VideoPlayer:
   m_TimeUpdateMode: 2
   m_PlaybackSpeed: 2
   m_AudioOutputMode: 2
-  m_TargetAudioSources:
-  - {fileID: 0}
-  m_DirectAudioVolumes:
-  - 0
+  m_TargetAudioSources: []
+  m_DirectAudioVolumes: []
   m_Url: 
-  m_EnabledAudioTracks: 01
-  m_DirectAudioMutes: 01
-  m_ControlledAudioTrackCount: 1
+  m_EnabledAudioTracks: 
+  m_DirectAudioMutes: 
+  m_ControlledAudioTrackCount: 0
   m_PlayOnAwake: 1
   m_SkipOnDrop: 1
   m_Looping: 1
@@ -14617,7 +14615,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 75.3, y: 42.2}
+  m_AnchoredPosition: {x: 73.6, y: 42.2}
   m_SizeDelta: {x: 60.79, y: 44.6}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1555395487
@@ -15542,7 +15540,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1678688327
 RectTransform:
   m_ObjectHideFlags: 0
@@ -16799,7 +16797,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 81.5, y: 78}
+  m_AnchoredPosition: {x: 79.6, y: 78}
   m_SizeDelta: {x: 60.79, y: 24.79}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1846285906

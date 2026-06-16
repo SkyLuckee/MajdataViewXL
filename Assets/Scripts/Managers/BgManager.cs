@@ -131,7 +131,7 @@ public class BgManager : MonoBehaviour
             videoPlayer.time = timeProvider.AudioTime;
 
             var scale = videoPlayer.height / (float)videoPlayer.width;
-            gameObject.transform.localScale = new Vector3(1.616f*originalScaleX, 1.616f*originalScaleX * scale);
+            gameObject.transform.localScale = new Vector3(1.616161f*originalScaleX, 1.616161f*originalScaleX * scale);
             spriteRender.material = Square;
         }
     }

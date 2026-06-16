@@ -158,7 +158,15 @@ public class ObjectCounter : MonoBehaviour
     [SerializeField]
     private Text objectRate;
     [SerializeField]
-    private Text judgeResultCount;
+    private Text judgeResultCount_Miss;
+    [SerializeField]
+    private Text judgeResultCount_Good;
+    [SerializeField]
+    private Text judgeResultCount_Great;
+    [SerializeField]
+    private Text judgeResultCount_Perfect;
+    [SerializeField]
+    private Text judgeResultCount_Critical;
 
     //Trg UI
     [SerializeField]
@@ -771,11 +779,11 @@ public class ObjectCounter : MonoBehaviour
                 "Combo: " + $"{NoteFinishedCount}"
             );
 
-            judgeResultCount.text = $"{cPerfectCount}\n" +
-                                    $"{perfectCount}\n" +
-                                    $"{greatCount}\n" +
-                                    $"{goodCount}\n" +
-                                    $"{missCount}\n\n";
+            judgeResultCount_Critical.text = $"{cPerfectCount}";
+            judgeResultCount_Perfect.text = $"{perfectCount}";
+            judgeResultCount_Great.text = $"{greatCount}";
+            judgeResultCount_Good.text = $"{goodCount}";
+            judgeResultCount_Miss.text = $"{missCount}";
                                     // $"{fastCount}\n" +
                                     // $"{lateCount}";
         }

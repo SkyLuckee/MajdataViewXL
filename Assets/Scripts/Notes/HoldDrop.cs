@@ -449,7 +449,7 @@ public class HoldDrop : NoteLongBase
 
         effectManager.PlayEffect(startPosition, isBreak, result);
         effectManager.PlayFastLate(startPosition, result);
-        print($"Hold: {MathF.Round(percent * 100, 2)}%\nTotal Len : {MathF.Round(realityHT * 1000, 2)}ms");
+        //print($"Hold: {MathF.Round(percent * 100, 2)}%\nTotal Len : {MathF.Round(realityHT * 1000, 2)}ms");
 
         objectCounter.ReportResult(SimaiNoteType.Hold, result, isBreak);
         if (!isJudged)

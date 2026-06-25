@@ -167,6 +167,10 @@ public class ObjectCounter : MonoBehaviour
     private Text judgeResultCount_Perfect;
     [SerializeField]
     private Text judgeResultCount_Critical;
+    [SerializeField]
+    private Text timeSig;
+    [SerializeField]
+    private Text bpmText;
 
     //Trg UI
     [SerializeField]
@@ -786,6 +790,25 @@ public class ObjectCounter : MonoBehaviour
             judgeResultCount_Miss.text = $"{missCount}";
                                     // $"{fastCount}\n" +
                                     // $"{lateCount}";
+
+            var time = Majdata<TimeProvider>.Instance!.NoteTime;
+            for (var i = meterList.Count - 1; i >= 0; i--)
+            {
+                var meter = meterList.ElementAt(i);
+                if (meter.Key > time) continue;
+
+                var (num, deno) = meter.Value;
+                timeSig.text = $"{num}\n{deno}";
+                break;
+            }
+            for (var i = bpmList.Count - 1; i >= 0; i--)
+            {
+                var bpm = bpmList.ElementAt(i);
+                if (bpm.Key > time) continue;
+
+                bpmText.text = bpm.Value.ToString();
+                break;
+            }
         }
         else
         {

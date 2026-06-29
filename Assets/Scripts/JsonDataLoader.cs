@@ -11,6 +11,9 @@ using System.Collections;
 using System.Diagnostics;
 using Assets.Scripts;
 using MajSimai;
+using System.Text;
+using System.Text.RegularExpressions;
+using TMPro;
 
 public class JsonDataLoader : MonoBehaviour
 {
@@ -51,6 +54,23 @@ public class JsonDataLoader : MonoBehaviour
     public RawImage cardImage;
     public Color[] diffColors = new Color[7];
     private CustomSkin customSkin;
+    public TextMeshProUGUI levelTextM;
+    public Text titleTextM;
+    public Text artistTextM;
+    public Text designTextM;
+    // public Text bpmTextM;
+    public SpriteRenderer cardImageM;
+    public SpriteRenderer LvBackgroundM;
+    // public SpriteRenderer[] TabM = new SpriteRenderer[2];
+    // public GameObject[] Modes = new GameObject[2];
+    public Sprite[] cardImagesM = new Sprite[8];
+    public Sprite[] LvBackgroundsM = new Sprite[8];
+    // public Sprite[] TabsM = new Sprite[8];
+    public Texture2D[] MLevelsM = new Texture2D[8];
+    public GameObject QuestionM;
+    // public GameObject TabUTGM;
+    // public Text UTGTextM;
+    // public GameObject TabUTG2pM;
 
     private ObjectCounter ObjectCounter;
 
@@ -479,6 +499,49 @@ public class JsonDataLoader : MonoBehaviour
                 artistText.text = loadedData.artist;
                 designText.text = loadedData.designer;
                 cardImage.color = diffColors[loadedData.diffNum];
+
+                //MaiUI
+                levelTextM.spriteAsset.spriteSheet = MLevelsM[loadedData.diffNum];
+                levelTextM.spriteAsset.material.SetTexture("_MainTex", MLevelsM[loadedData.diffNum]);
+
+                StringBuilder sb = new();
+                if (loadedData.level.Length == 1)
+                {
+                    sb.Append("<space=1>");
+                }
+                foreach (var item in loadedData.level)
+                {
+                    if (int.TryParse(item.ToString(), out int lv))
+                        sb.Append($"<sprite={lv}>");
+                    else
+                    {
+                        switch (item)
+                        {
+                            case '+':
+                                sb.Append("<sprite=10>");
+                                break;
+                            case '-':
+                                sb.Append("<sprite=11>");
+                                break;
+                            case ',':
+                                sb.Append("<sprite=12>");
+                                break;
+                            case '.':
+                                sb.Append("<sprite=13>");
+                                break;
+                        }
+                    }
+                }
+                levelTextM.text = sb.ToString();
+                titleTextM.text = loadedData.title;
+                artistTextM.text = loadedData.artist;
+                designTextM.text = loadedData.designer;
+                // bpmTextM.text = "BPM " + loadedData.WholeBpm;
+                cardImageM.sprite = cardImagesM[loadedData.diffNum];
+                LvBackgroundM.sprite = LvBackgroundsM[loadedData.diffNum];
+
+                QuestionM.SetActive(loadedData.level.EndsWith('?'));
+                loadedData.level = loadedData.level.Replace("?", "");
 
                 CountNoteSum(loadedData);
                 var lastNoteTime = loadedData.timingList.Count > 0 ? loadedData.timingList.Last().Timing : 0d;

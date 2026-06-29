@@ -13587,7 +13587,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -25.1, y: 27.38}
+  m_AnchoredPosition: {x: -24.97, y: 27.38}
   m_SizeDelta: {x: 43.559998, y: 3.0999985}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1311215482
@@ -13939,8 +13939,8 @@ Transform:
   m_GameObject: {fileID: 1322747928}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -72.5, y: 38.1, z: -899.99994}
-  m_LocalScale: {x: 2, y: 2.2200003, z: 2.2200003}
+  m_LocalPosition: {x: -74.38, y: 35.52, z: -899.99994}
+  m_LocalScale: {x: 1.45, y: 1.6095003, z: 1.6095003}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 1372501461}
@@ -17302,7 +17302,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -62.2, y: 80.6}
+  m_AnchoredPosition: {x: -62.57, y: 80.6}
   m_SizeDelta: {x: 24.325, y: 17.259}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1616374274
@@ -20686,7 +20686,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 2100000, guid: 58b71fdfceaec5b4c9eed8d4fa6fc443, type: 2}
-  m_Color: {r: 1, g: 0.8207547, b: 1, a: 1}
+  m_Color: {r: 1, g: 0.8627451, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -21574,7 +21574,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!212 &2136680972
 SpriteRenderer:
   m_ObjectHideFlags: 0

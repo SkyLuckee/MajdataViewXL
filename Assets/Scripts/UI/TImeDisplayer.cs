@@ -36,7 +36,7 @@ public class TImeDisplayer : MonoBehaviour
         }
         else
         {
-            text.text = string.Format("{0}:{1:00}.{2:0000}", minute, second, mili);
+            text.text = string.Format(" {0}:{1:00}.{2:000}", minute, second, mili / 10);
         }
     }
 }

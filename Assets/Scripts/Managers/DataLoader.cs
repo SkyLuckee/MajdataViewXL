@@ -68,6 +68,10 @@ public class DataLoader : MonoBehaviour
     // public GameObject TabUTGM;
     // public Text UTGTextM;
     // public GameObject TabUTG2pM;
+    public SpriteRenderer[] BGLayers = new SpriteRenderer[11];
+    public RawImage BGM;
+    public Material defaultMaterial;
+    public Material grayScaleMaterial;
 
     private const double StreamingCreatePreloadTime = 4;
     private const double StreamingFrameBudgetMs = 4;
@@ -246,9 +250,30 @@ public class DataLoader : MonoBehaviour
         this.legacySlideLayer = legacySlideLayer;
 
         //MaiUI
-        levelTextM.spriteAsset.spriteSheet = MLevelsM[diff];
-        levelTextM.spriteAsset.material.SetTexture("_MainTex", MLevelsM[diff]);
-
+        // GrayScale command
+        bool grayScale = false;
+        var grayScaleCommand = commands.FirstOrDefault(c => c.Prefix == "gray_scale");
+        if (grayScaleCommand != default) grayScale = bool.Parse(grayScaleCommand.Value);
+                
+        if (grayScale)
+        {
+            BGM.material = grayScaleMaterial;
+            foreach (var r in BGLayers)
+            {
+                r.material = grayScaleMaterial;
+            }
+        }
+        else
+        {
+            BGM.material = defaultMaterial;
+            foreach (var r in BGLayers)
+            {
+                r.material = defaultMaterial;
+            }
+        }
+        
+        levelTextM.spriteAsset.spriteSheet = (grayScale) ? MLevelsM[7] : MLevelsM[diff];
+        levelTextM.spriteAsset.material.SetTexture("_MainTex", (grayScale) ? MLevelsM[7] : MLevelsM[diff]); // use DAMMY for text
         StringBuilder sb = new();
         if (chart.Level.Length == 1)
         {
@@ -283,8 +308,11 @@ public class DataLoader : MonoBehaviour
         designTextM.text = chart.Designer;
         bpmTextM.text = "BPM " + chart.NoteTimings[0].Bpm;
         cardImageM.sprite = cardImagesM[diff];
+        cardImageM.material = (grayScale) ? grayScaleMaterial : defaultMaterial;
         LvBackgroundM.sprite = LvBackgroundsM[diff];
-        
+        LvBackgroundM.material = (grayScale) ? grayScaleMaterial : defaultMaterial;
+
+        // STD/DX command
         var chartMode = "DX";
         var chartModeCommand = commands.FirstOrDefault(c => c.Prefix == "chart_mode");
         if (chartModeCommand != default) chartMode = chartModeCommand.Value;
@@ -294,14 +322,18 @@ public class DataLoader : MonoBehaviour
             if (chartMode == "STD")
             {
                 Modes[0].SetActive(true);
+                Modes[0].GetComponent<SpriteRenderer>().material = (grayScale) ? grayScaleMaterial : defaultMaterial;
                 Modes[1].SetActive(false);
                 TabM[0].sprite = TabsM[diff];
+                TabM[0].material = (grayScale) ? grayScaleMaterial : defaultMaterial;
             }
             else
             {
                 Modes[0].SetActive(false);
                 Modes[1].SetActive(true);
+                Modes[1].GetComponent<SpriteRenderer>().material = (grayScale) ? grayScaleMaterial : defaultMaterial;
                 TabM[1].sprite = TabsM[diff];
+                TabM[1].material = (grayScale) ? grayScaleMaterial : defaultMaterial;
             }
         }
         else
@@ -311,6 +343,7 @@ public class DataLoader : MonoBehaviour
         }
 
         QuestionM.SetActive(chart.Level.EndsWith('?'));
+        QuestionM.GetComponent<SpriteRenderer>().material = (grayScale) ? grayScaleMaterial : defaultMaterial;
         chart.Level = chart.Level.Replace("?", "");
 
         objectCounter.CountNoteSumAsync(chart).Forget();

@@ -4079,6 +4079,21 @@ MonoBehaviour:
   - {fileID: 2800000, guid: cad5dd2bef3cc91409febd4f43d33292, type: 3}
   - {fileID: 2800000, guid: 8969a1292548b3a4ea67ba7d64b4815b, type: 3}
   QuestionM: {fileID: 1834688060}
+  BGLayers:
+  - {fileID: 566706996}
+  - {fileID: 1592750842}
+  - {fileID: 810832722}
+  - {fileID: 890097036}
+  - {fileID: 1132290664}
+  - {fileID: 193966372}
+  - {fileID: 1908667090}
+  - {fileID: 1287208129}
+  - {fileID: 677246355}
+  - {fileID: 875387931}
+  - {fileID: 359366589}
+  BGM: {fileID: 2015685977}
+  defaultMaterial: {fileID: 2100000, guid: 58b71fdfceaec5b4c9eed8d4fa6fc443, type: 2}
+  grayScaleMaterial: {fileID: 2100000, guid: 5af8d0cb50cdde846bfba9b708dbb8e6, type: 2}
 --- !u!4 &410561410
 Transform:
   m_ObjectHideFlags: 0

@@ -1,7 +1,7 @@
 <div align="center">
   <img src="https://github.com/user-attachments/assets/383a065e-b9a4-40b6-a06f-720857de883c" width="160px" />
   
-  <h1>MajdataView&Edit X</h1>
+  <h1>MajdataViewXL</h1>
 
   
   ![MajdataX Prisy](https://img.shields.io/badge/MajdataX-Prisy-50469C)
@@ -10,75 +10,41 @@
   [![State-of-the-art Shitcode](https://img.shields.io/static/v1?label=State-of-the-art&message=Shitcode&color=7B5804)](https://github.com/trekhleb/state-of-the-art-shitcode)
 </div>
 
-# 注意 / ATTENTION
+# ATTENTION
 
-- **该项目为个人维护修改版本() / Community-maintained fork**
-- **扩展包下载 / Extension Package**： [MajMuriDX Release](https://github.com/re-poem/MajdataViewX/releases/tag/MajMuriDX)
-- **更改包中的ThemeConfig.json来回退到旧的UI配色！ / Edit the ThemeConfig.json in the package to use the legacy UI !**
-```
-{
-  "LabelForeground": "#FFBDBDBD",
-  "ButtonForeground": "#FFFFFFFF",
-  "HelperForeground": "#FF569CD6",
-  "WindowBackground": "#FF5A6275",
-  "ButtonsBackground": "#99303030"
-}
-```
-- **如果下载了runtime仍无法使用，试试这个链接 / If you still can't use it after downloading the runtime, try this link**: [runtime download](https://dotnet.microsoft.com/zh-cn/download/dotnet/thank-you/runtime-6.0.36-windows-x64-installer)
+- **This is a custom fork made by me (SkyLucky) with the intention of mimicking the UI and aesthetic of the arcade rhythm game maimai**
+- **I'm not affiliated with MajdataTeam or Re_Poem and work on this fork for my own use**
+- **This fork mostly made changes to the UI and such, and not anything too technical**
 
-## 下载 / Download
+## Branch Description
 
-<div style="transform: scale(1.7);transform-origin: 0 20%;">
-
-[![Download](https://img.shields.io/badge/Download-Latest_Release-blue?style=for-the-badge)](https://github.com/re-poem/MajdataViewX/releases)
-
-
-</div>
-
-
-## 语言切换 / Language
-
-使用设置菜单 / Please use the setting menu 
-
-## 相关链接 / Related Links
-
-- MajdataX 的 QQ 群聊：361736398 (更快地反馈问题)
-- Majdata 系 [官方Discord](https://discord.com/invite/AcWgZN7j6K)
-- [Majdata Net](https://majdata.net/)
-- [MajdataPlay](https://github.com/TeamMajdata/MajdataPlay_Build)
-- 真·下一代谱面编辑器-[MajdataEdit-Neo](https://github.com/LingFeng-bbben/MajdataEdit-Neo)
-
-<br/>
-<br/>
-
-# 帮助 / Help
-
-## 文档 / Documentation
-
-- [中文 Wiki](https://github.com/LingFeng-bbben/MajdataView/wiki)
-- [English Guide On Charting](https://rentry.co/maiguide#making-the-chart)
-- [X新功能Wiki](https://github.com/re-poem/MajdataViewX/wiki)
-
-## 分支说明 / Branch Description
-
-| 分支 | 说明 |
+| Branch | Description |
 |:---:|:---:|
-| master | 正常分支，release 时的分支，继续维护原汁原味 Majdata Edit&View，[下载](https://github.com/re-poem/MajdataViewX/releases) |
-| yours | 旧版 yours 分支，从 v4.4.0 修改而来，[你知道的](https://www.bilibili.com/video/BV16UYhzdED7/) |
+| master-Neo | The most up-to-date branch, with the most features. Made to be compact with MajdataEditNeo |
+| master-Legacy | Similar to master-Neo, but missing some features. Made to be compact with MajdataEditX  |
+> All branches are made to be in sync with the upstream MajdataViewX
 
-## 已知问题 / Known Issues
+## Features
+1. maimai Jacket assets (ripped from TRGUI branch of MajdataViewX)
+   - Card Images
+   - Lv flaps
+   - Custom fonts
+   - BPM text on card
+   - Question mark object for use in utage
+   - Tab for STD/DX indication (master-Neo only)
+   - Tab for Utage kanji (master-Neo only for now)
+       - Use by adding `[something]` at the start of the level text box. eg: `[J]14?`
+2. Custom loading assets and animations
+3. Custom commands for various functions (master-Neo only)
+   - `chart_mode=STD` to change tab to STD (Default DX)
+   - `gray_scale=true` to enable a custom shader for a grayscale loading animation
+4. Modification of the HUD to remove unnecessary information and use a different font
+5. Modify the background element to enable fullscreen pv render (master-Neo only for now)
+6. Add a judgement breakdown bar at the top of the playfield (master-Neo only for now)
+7. Custom **ALL PERFECT** assets and animation (master-Neo only for now)
 
-1. **不支持动态比特率的 mp3 文件**
-2. 部分语法规则较为宽松，可以在 Majdata 中运行的谱面可能无法在其他软件中（如 maipad、simai、Astro）运行
-3. 软件渲染可能不支持 3:00 以上的歌，可以缩小下面的预览图解决（很难修！！）
-4. 使用内置录屏时，请确保 view 的分辨率是偶数。点击之后可能会有较长卡顿，请耐心等待。
-5. 进行铺面共享时，请不要一次性更改太多内容，比如Ctrl+A+BackSpace()，会导致谱面同步延迟甚至失败
-6. 在v5.0.0之后的版本，~由于MS的魅力代码~，maj可能会出现无法剪切/复制卡顿等情况，这大概率是因为你后台有远程这种会读取剪贴板的软件造成的，请尝试关掉或调整其设置。
-
-> 其他问题见 [MajdataX 的 issue 页面](https://github.com/re-poem/MajdataViewX/issues) 或者 **[提交 Issue](https://github.com/re-poem/MajdataViewX/issues/new)**
-
-<br/>
-<br/>
+## Issues and Bugs report
+If there are any issues or bugs, please contact me on Discord: `.skylucky`. I don't guarantee that I can fix the bug, I will only look if the bug is from my mod or from the upstream MajdataViewX (Please understand) 
 
 # Credits
 

@@ -20,8 +20,8 @@
 
 | Branch | Description |
 |:---:|:---:|
-| master-Neo | The most up-to-date branch, with the most features. Made to be compact with MajdataEditNeo |
-| master-Legacy | Similar to master-Neo, but missing some features. Made to be compact with MajdataEditX  |
+| master-Neo | The most up-to-date branch, with the most features. Compatible with MajdataEditNeo 6.0.0|
+| master-Legacy | Similar to master-Neo, but missing some features. Compatible with MajdataEditX 5.1.8 |
 > All branches are made to be in sync with the upstream MajdataViewX
 
 ## Features

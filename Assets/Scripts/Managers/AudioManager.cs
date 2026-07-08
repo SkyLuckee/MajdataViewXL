@@ -22,6 +22,7 @@ public class AudioManager : MonoBehaviour
     [CanBeNull] private float[] TrackSampleData;
     private float TrackSampleVolume;
     public bool IsTrackLoaded => TrackSample != null && TrackSampleData != null;
+    public float TrackLengthSeconds => TrackSample != null ? (float)TrackSample.Length : 0f;
 
     //answer SFX
     List<AnswerTimingPoint> answerTimingPoints = new();

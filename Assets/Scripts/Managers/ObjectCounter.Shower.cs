@@ -527,6 +527,7 @@ namespace MajdataViewX.Managers
             }
             else
             {
+                outputBuilder.Append(' ');
                 outputBuilder.Append(minute);
                 outputBuilder.Append(':');
                 outputBuilder.Append(second, "00");

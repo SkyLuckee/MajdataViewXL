@@ -198,7 +198,7 @@ namespace MajdataViewX.Managers
                 {
                     case PlaybackMode.Normal:
                         await _dataLoader.Load(
-                            _chart, ignoreOffset,
+                            _chart, commands,ignoreOffset,
                             title, artist, difficulty,
                             noteSpeed, touchSpeed,
                             _setting.SmoothSlideAnime,
@@ -211,7 +211,7 @@ namespace MajdataViewX.Managers
                         break;
                     case PlaybackMode.IncludeOp:
                         await _dataLoader.Load(
-                            _chart, ignoreOffset,
+                            _chart, commands,ignoreOffset,
                             title, artist, difficulty,
                             noteSpeed, touchSpeed,
                             _setting.SmoothSlideAnime,
@@ -233,7 +233,7 @@ namespace MajdataViewX.Managers
                         }
 
                         await _dataLoader.Load(
-                            _chart, ignoreOffset,
+                            _chart, commands,ignoreOffset,
                             title, artist, difficulty,
                             noteSpeed, touchSpeed,
                             _setting.SmoothSlideAnime,

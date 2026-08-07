@@ -41,7 +41,19 @@ namespace MajdataViewX.Managers
         [SerializeField]
         private TextMeshProUGUI objectRate;
         [SerializeField]
-        private TextMeshProUGUI judgeResultCount;
+        private TextMeshProUGUI judgeResultCount_Miss;
+        [SerializeField]
+        private TextMeshProUGUI judgeResultCount_Good;
+        [SerializeField]
+        private TextMeshProUGUI judgeResultCount_Great;
+        [SerializeField]
+        private TextMeshProUGUI judgeResultCount_Perfect;
+        [SerializeField]
+        private TextMeshProUGUI judgeResultCount_Critical;
+        [SerializeField]
+        private TextMeshProUGUI BPMText;
+        [SerializeField]
+        private TextMeshProUGUI TimeSigText;
 
         //Trg UI
         [SerializeField]
@@ -341,65 +353,70 @@ namespace MajdataViewX.Managers
             if (CurrentUIType is UIType.Legacy)
             {
                 outputBuilder.Clear();
-                outputBuilder.Append("TAP: ");
+                outputBuilder.Append("TAP:   ");
                 outputBuilder.Append(TapFinishedCount);
                 outputBuilder.Append(" / ");
                 outputBuilder.Append(TapSum);
-                outputBuilder.Append("\nHOD: ");
+                outputBuilder.Append("\nHOLD:  ");
                 outputBuilder.Append(HoldFinishedCount);
                 outputBuilder.Append(" / ");
                 outputBuilder.Append(HoldSum);
-                outputBuilder.Append("\nSLD: ");
+                outputBuilder.Append("\nSLIDE: ");
                 outputBuilder.Append(SlideFinishedCount);
                 outputBuilder.Append(" / ");
                 outputBuilder.Append(SlideSum);
-                outputBuilder.Append("\nTOH: ");
+                outputBuilder.Append("\nTOUCH: ");
                 outputBuilder.Append(TouchFinishedCount);
                 outputBuilder.Append(" / ");
                 outputBuilder.Append(TouchSum);
-                outputBuilder.Append("\nBRK: ");
+                outputBuilder.Append("\nBREAK: ");
                 outputBuilder.Append(BreakFinishedCount);
                 outputBuilder.Append(" / ");
                 outputBuilder.Append(BreakSum);
                 outputBuilder.Append("\nALL: ");
-                outputBuilder.Append(NoteFinishedCount);
-                outputBuilder.Append(" / ");
+                // outputBuilder.Append(NoteFinishedCount);
+                // outputBuilder.Append(" / ");
                 outputBuilder.Append(NoteSum);
-                outputBuilder.Append("\nMOD: ");
-                outputBuilder.Append(NoteHelper.AutoPlayMode switch
-                {
-                    AutoPlayMode.Enable => "Enable",
-                    AutoPlayMode.DJAutoButton => "DJAuto (Btn)",
-                    AutoPlayMode.DJAutoSensor => "DJAuto",
-                    AutoPlayMode.Random => "Random",
-                    AutoPlayMode.Disable => "Disable",
-                    _ => "INVALID"
-                });
+                // outputBuilder.Append("\nMOD: ");
+                // outputBuilder.Append(NoteHelper.AutoPlayMode switch
+                // {
+                //     AutoPlayMode.Enable => "Enable",
+                //     AutoPlayMode.DJAutoButton => "DJAuto (Btn)",
+                //     AutoPlayMode.DJAutoSensor => "DJAuto",
+                //     AutoPlayMode.Random => "Random",
+                //     AutoPlayMode.Disable => "Disable",
+                //     _ => "INVALID"
+                // });
                 SetOutputText(objectCount);
 
                 outputBuilder.Clear();
-                outputBuilder.Append("FiNALE  Rate:\n");
-                outputBuilder.Append(ClassicRateFromCount, "000.00");
-                outputBuilder.Append("   %\nDELUXE Rate:\n");
+                // outputBuilder.Append("FiNALE  Rate:\n");
+                // outputBuilder.Append(ClassicRateFromCount, "000.00");
+                outputBuilder.Append("DELUXE Rate:\n");
                 outputBuilder.Append(DeluxeRateFromCount, "000.0000");
                 outputBuilder.Append(" % ");
+                outputBuilder.Append("\n\nCombo: ");
+                outputBuilder.Append(NoteFinishedCount, "0");
                 SetOutputText(objectRate);
 
                 outputBuilder.Clear();
                 outputBuilder.Append(cPerfectCount);
-                outputBuilder.Append('\n');
+                SetOutputText(judgeResultCount_Critical);
+                outputBuilder.Clear();
                 outputBuilder.Append(perfectCount);
-                outputBuilder.Append('\n');
+                SetOutputText(judgeResultCount_Perfect);
+                outputBuilder.Clear();
                 outputBuilder.Append(greatCount);
-                outputBuilder.Append('\n');
+                SetOutputText(judgeResultCount_Great);
+                outputBuilder.Clear();
                 outputBuilder.Append(goodCount);
-                outputBuilder.Append('\n');
+                SetOutputText(judgeResultCount_Good);
+                outputBuilder.Clear();
                 outputBuilder.Append(missCount);
-                outputBuilder.Append("\n\n");
-                outputBuilder.Append(fastCount);
-                outputBuilder.Append('\n');
-                outputBuilder.Append(lateCount);
-                SetOutputText(judgeResultCount);
+                SetOutputText(judgeResultCount_Miss);
+                // outputBuilder.Append(fastCount);
+                // outputBuilder.Append('\n');
+                // outputBuilder.Append(lateCount);
             }
             else
             {
@@ -455,30 +472,36 @@ namespace MajdataViewX.Managers
                 outputBuilder.Clear();
                 IntegerFormat.FormatTo(ref outputBuilder, combo);
                 SetOutputText(objCombo);
+            }
 
-                var time = _timeProvider.NoteTime;
-                for (var i = meterList.Count - 1; i >= 0; i--)
-                {
-                    var meter = meterList[i];
-                    if (meter.Timing > time) continue;
+            var time = _timeProvider.NoteTime;
+            for (var i = meterList.Count - 1; i >= 0; i--)
+            {
+                var meter = meterList[i];
+                if (meter.Timing > time) continue;
 
-                    outputBuilder.Clear();
-                    outputBuilder.Append(meter.Numerator);
-                    outputBuilder.Append('\n');
-                    outputBuilder.Append(meter.Denominator);
+                outputBuilder.Clear();
+                outputBuilder.Append(meter.Numerator);
+                outputBuilder.Append('\n');
+                outputBuilder.Append(meter.Denominator);
+                if (CurrentUIType is UIType.Legacy)
+                    SetOutputText(TimeSigText);
+                else
                     SetOutputText(objMeter);
-                    break;
-                }
-                for (var i = bpmList.Count - 1; i >= 0; i--)
-                {
-                    var bpm = bpmList[i];
-                    if (bpm.Timing > time) continue;
+                break;
+            }
+            for (var i = bpmList.Count - 1; i >= 0; i--)
+            {
+                var bpm = bpmList[i];
+                if (bpm.Timing > time) continue;
 
-                    outputBuilder.Clear();
-                    outputBuilder.Append(bpm.Bpm);
+                outputBuilder.Clear();
+                outputBuilder.Append(bpm.Bpm);
+                if (CurrentUIType is UIType.Legacy)
+                    SetOutputText(BPMText);
+                else
                     SetOutputText(objBpm);
-                    break;
-                }
+                break;
             }
         }
         private void OutputTime()
@@ -487,7 +510,7 @@ namespace MajdataViewX.Managers
             var timeNowInt = (int)ctime;
             var minute = timeNowInt / 60;
             var second = timeNowInt - 60 * minute;
-            double milli = (ctime - timeNowInt) * 10000;
+            double milli = (ctime - timeNowInt) * 1000;
 
             outputBuilder.Clear();
             if (ctime < 0)
@@ -500,7 +523,7 @@ namespace MajdataViewX.Managers
                 outputBuilder.Append(':');
                 outputBuilder.Append(second, "00");
                 outputBuilder.Append('.');
-                outputBuilder.Append(milli / 10, "000");
+                outputBuilder.Append(milli, "000");
             }
             else
             {
@@ -508,7 +531,7 @@ namespace MajdataViewX.Managers
                 outputBuilder.Append(':');
                 outputBuilder.Append(second, "00");
                 outputBuilder.Append('.');
-                outputBuilder.Append(milli, "0000");
+                outputBuilder.Append(milli, "000");
             }
 
             if (CurrentUIType == UIType.Legacy)

@@ -223,7 +223,7 @@ namespace MajdataViewX.Notes.Updaters
             if (NoteHelper.AutoPlayMode is AutoPlayMode.Disable) return;
 
             var timing = TimeData.NoteTime - hold.time;
-            if (timing < InputManager.DJAUTO_AUTOPLAY_START_SEC) return;
+            if (timing < InputManager.AUTOPLAY_START_SEC) return;
 
             switch (NoteHelper.AutoPlayMode)
             {
@@ -270,20 +270,6 @@ namespace MajdataViewX.Notes.Updaters
                     {
                         hold.holdPercent = 1f;
                         EndNote(ref hold);
-                    }
-                    break;
-                case AutoPlayMode.DJAutoButton:
-                    if (hold.isMine) break;
-                    if (!hold.isHeadJudged || math.max(hold.LastFor - timing, 0) > 0)
-                    {
-                        InputData.DJAutoSetButtonOn(hold.Key);
-                    }
-                    break;
-                case AutoPlayMode.DJAutoSensor:
-                    if (hold.isMine) break;
-                    if (!hold.isHeadJudged || math.max(hold.LastFor - timing, 0) > 0)
-                    {
-                        InputData.DJAutoSetSensorOn(hold.Key);
                     }
                     break;
             }

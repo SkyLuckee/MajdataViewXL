@@ -119,7 +119,7 @@ namespace MajdataViewX.Notes.Updaters
             if (NoteHelper.AutoPlayMode is AutoPlayMode.Disable) return;
 
             var timing = TimeData.NoteTime - tap.Time;
-            if (timing < InputManager.DJAUTO_AUTOPLAY_START_SEC) return;
+            if (timing < InputManager.AUTOPLAY_START_SEC) return;
             switch (NoteHelper.AutoPlayMode)
             {
                 case AutoPlayMode.Enable:
@@ -136,23 +136,6 @@ namespace MajdataViewX.Notes.Updaters
                     tap.IsJudged = true;
                     tap.Diff = grade >= JudgeGrade.LateCritical ? 11.4514f : -11.4514f;
                     EndNote(ref tap);
-                    break;
-                case AutoPlayMode.DJAutoButton:
-                    if (tap.IsMine) break;
-                    if (!tap.IsJudged)
-                    {
-                        InputData.DJAutoSetButtonOn(tap.Key);
-                    }
-                    break;
-                case AutoPlayMode.DJAutoSensor:
-                    if (tap.IsMine) break;
-                    if (!tap.IsJudged)
-                    {
-                        if (!tap.IsSlideGuide)
-                        {
-                            InputData.DJAutoSetSensorOn(tap.Key);
-                        }
-                    }
                     break;
             }
         }

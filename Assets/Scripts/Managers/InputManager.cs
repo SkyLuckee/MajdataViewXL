@@ -21,23 +21,18 @@ namespace MajdataViewX.Managers
 {
     public class InputManager
     {
-        // Slide默认尺寸
-        public const float DJAUTO_HAND_RADIUS = 0.45f;
-        // Wifi默认尺寸
-        public const float DJAUTO_WIFI_RADIUS = 1.00f;
-        // Touch/TouchHold 覆盖圆的最小指尖尺寸；需要更少误触时可单独调小。
-        public const float DJAUTO_TOUCH_COVER_MIN_RADIUS = 0.45f;
-        // 所有 DJAuto 手势复用时允许扩大的最大半径。
-        public const float DJAUTO_HAND_MAX_RADIUS = 1.80f;
+        // 默认手尺寸
+        public const float DEFAULT_HAND_RADIUS = 0.45f;
 
         // mutable, depends on fps(djauto changes apply in next frame)
         private struct DJAutoAutoplayStartSecKey { }
         public static readonly SharedStatic<float> DJAUTO_AUTOPLAY_START_SEC_SS = SharedStatic<float>.GetOrCreate<InputManager, DJAutoAutoplayStartSecKey>();
-        public static float DJAUTO_AUTOPLAY_START_SEC => DJAUTO_AUTOPLAY_START_SEC_SS.Data;
-        public const float DJAUTO_TOUCH_DOUBLE_CIRCLE_SLIDE_START_SEC = -2 * FRAME_LENGTH_SEC;
+        public static float AUTOPLAY_START_SEC => DJAUTO_AUTOPLAY_START_SEC_SS.Data;
         public const float DJAUTO_SLIDE_TAP_GUIDE_DELAY_SEC = 3 * FRAME_LENGTH_SEC;
 
         public const float DJAUTO_SLIDE_RELEASE_DELAY_SEC = 6 * FRAME_LENGTH_SEC;
+
+
 
         public const float BUTTON_HIT_RENDER_RADIUS = 0.4f;
 
@@ -152,20 +147,6 @@ namespace MajdataViewX.Managers
         }
     }
 
-    internal enum DJAutoHandVisualKind : byte
-    {
-        None,
-        Coverage,
-        WorldHit
-    }
-
-    internal struct DJAutoHandData
-    {
-        public Circle Circle;
-        public DJAutoHandVisualKind VisualKind;
-        public int VisualIndex;
-    }
-
     [BurstCompile]
     public unsafe struct InputDataB
     {
@@ -182,18 +163,6 @@ namespace MajdataViewX.Managers
         NativeArray<int> _nextSensorIndex;
         NativeArray<int> _nextButtonIndexNextFrame;
         NativeArray<int> _nextSensorIndexNextFrame;
-
-        const int DJAUTO_MAX_CONCURRENT_INPUTS = 2;
-        int _djAutoInputCount;
-        NativeArray<DJAutoHandData> _djAutoHandsNextFrame;
-        int _djAutoHandsWriteLock;
-
-        public NativeArray<CoverResult> ActiveCoverages;
-        [NativeDisableUnsafePtrRestriction]
-        public int* ActiveCoveragesCountPtr;
-
-        NativeArray<CoverResult> _activeCoveragesNextFrame;
-        int _activeCoveragesNextFrameCount;
 
         NativeArray<HitRenderData> _worldPosHitsNextFrame;
         int _worldPosHitsNextFrameCount;
@@ -215,18 +184,13 @@ namespace MajdataViewX.Managers
             _nextSensorIndex = new(SENSOR_COUNT, Allocator.Persistent);
             _nextButtonIndexNextFrame = new(BUTTON_COUNT, Allocator.Persistent);
             _nextSensorIndexNextFrame = new(SENSOR_COUNT, Allocator.Persistent);
-            _djAutoHandsNextFrame = new(DJAUTO_MAX_CONCURRENT_INPUTS, Allocator.Persistent);
 
             for (var i = 0; i < BUTTON_COUNT; i++)
                 _buttonStates[i] = new();
             for (var i = 0; i < SENSOR_COUNT; i++)
                 _sensorStates[i] = new();
 
-            ActiveCoverages = new(32, Allocator.Persistent);
-            _activeCoveragesNextFrame = new(32, Allocator.Persistent);
             _worldPosHitsNextFrame = new(32, Allocator.Persistent);
-            ActiveCoveragesCountPtr = (int*)UnsafeUtility.Malloc(sizeof(int), 4, Allocator.Persistent);
-            *ActiveCoveragesCountPtr = 0;
         }
 
 
@@ -241,340 +205,11 @@ namespace MajdataViewX.Managers
         public readonly SensorState GetSensorState(SensorType type) => _sensorStates[(int)type];
 
 
-        // ======DJAuto Part======
-        // DJAuto部分的state写入都会被移到下一帧开头
-        // 避免因为update顺序导致的读取问题
-
-        /// <summary>
-        /// DJAuto按键处理Tap/Hold
-        /// </summary>
-        public void DJAutoSetButtonOn(SensorType type)
-        {
-            var hand = new Circle
-            {
-                Center = MajPos.GetBtnPos((int)type),
-                Radius = InputManager.DJAUTO_HAND_RADIUS
-            };
-            if (!TryRequestDJAutoHand(hand, DJAutoHandVisualKind.None, out _)) return;
-
-            SetNextFrameButtonOn(type);
-        }
-        /// <summary>
-        /// DJAuto判定区处理Tap/Hold
-        /// </summary>
-        public void DJAutoSetSensorOn(SensorType type)
-        {
-            var hand = new Circle
-            {
-                Center = SensorWorldPositions[(int)type],
-                Radius = InputManager.DJAUTO_HAND_RADIUS
-            };
-            if (!TryRequestDJAutoHand(hand, DJAutoHandVisualKind.None, out _)) return;
-
-            SetNextFrameSensorOn(type);
-        }
-        /// <summary>
-        /// DJAuto处理Touch/TouchHold（寻找大手圆）
-        /// </summary>
-        public void DJAutoAddGroupCoverage(CoverResult cover, float timing = 0f)
-        {
-            if (cover.Mode == CoverMode.None) return;
-
-            if (cover.Mode == CoverMode.DoubleCircleSlide)
-            {
-                // 从 -2 帧提前起手落下两指，再用后半段 Perfect 窗口（12 帧，即 0.2 秒）完成滑动。
-                // 这也是全屏扫动可接受的速度上限。
-                float slideStart = InputManager.DJAUTO_TOUCH_DOUBLE_CIRCLE_SLIDE_START_SEC;
-                float slideDuration = NoteHelper.TOUCH_JUDGE_SEG_3RD_PERFECT_MSEC / 1000f;
-                float progress = math.saturate((timing - slideStart) / slideDuration);
-                cover.Circle1.Center = math.lerp(cover.Circle1.Center, cover.Circle1End, progress);
-                cover.Circle2.Center = math.lerp(cover.Circle2.Center, cover.Circle2End, progress);
-            }
-
-            int firstHandIndex = -1;
-            if (TryRequestDJAutoHand(
-                cover.Circle1,
-                DJAutoHandVisualKind.Coverage,
-                out firstHandIndex))
-                SetSensorsFromMask(GetSensorMask(cover.Circle1));
-
-            if (cover.Mode is CoverMode.DoubleCircleDirect or
-                CoverMode.DoubleCircleGroup or
-                CoverMode.DoubleCircleSlide)
-            {
-                if (TryRequestDJAutoHand(
-                    cover.Circle2,
-                    DJAutoHandVisualKind.Coverage,
-                    out _,
-                    firstHandIndex))
-                    SetSensorsFromMask(GetSensorMask(cover.Circle2));
-            }
-        }
-
-        private bool TryRequestDJAutoHand(
-            Circle requestedCircle,
-            DJAutoHandVisualKind visualKind,
-            out int assignedHandIndex,
-            int excludedHandIndex = -1)
-        {
-            while (Interlocked.CompareExchange(ref _djAutoHandsWriteLock, 1, 0) != 0)
-            {
-            }
-
-            assignedHandIndex = -1;
-            ulong requestedSensors = GetSensorMask(requestedCircle);
-            bool accepted = false;
-
-            // 已经覆盖目标时直接共用。
-            for (int handIndex = 0; handIndex < _djAutoInputCount; handIndex++)
-            {
-                if (handIndex == excludedHandIndex) continue;
-
-                Circle existingCircle = _djAutoHandsNextFrame[handIndex].Circle;
-                if (requestedSensors != 0)
-                {
-                    ulong existingSensors = GetSensorMask(existingCircle);
-                    if ((existingSensors & requestedSensors) == requestedSensors)
-                    {
-                        accepted = true;
-                        assignedHandIndex = handIndex;
-                        break;
-                    }
-                }
-                else
-                {
-                    float containRadius = math.distance(existingCircle.Center, requestedCircle.Center) +
-                                          requestedCircle.Radius;
-                    if (containRadius <= existingCircle.Radius + 1e-4f)
-                    {
-                        accepted = true;
-                        assignedHandIndex = handIndex;
-                        break;
-                    }
-                }
-            }
-
-            // 没有现成覆盖时优先申请空闲手。
-            if (!accepted && _djAutoInputCount < DJAUTO_MAX_CONCURRENT_INPUTS)
-            {
-                int visualIndex = -1;
-                bool visualAvailable = true;
-                if (visualKind == DJAutoHandVisualKind.Coverage)
-                {
-                    visualIndex = _activeCoveragesNextFrameCount;
-                    visualAvailable = visualIndex < _activeCoveragesNextFrame.Length;
-                    if (visualAvailable)
-                    {
-                        _activeCoveragesNextFrameCount++;
-                        _activeCoveragesNextFrame[visualIndex] = new CoverResult
-                        {
-                            Mode = CoverMode.SingleCircleDirect,
-                            Circle1 = requestedCircle
-                        };
-                    }
-                }
-                else if (visualKind == DJAutoHandVisualKind.WorldHit && _showHandThisFrame)
-                {
-                    visualIndex = _worldPosHitsNextFrameCount;
-                    visualAvailable = visualIndex < _worldPosHitsNextFrame.Length;
-                    if (visualAvailable)
-                    {
-                        _worldPosHitsNextFrameCount++;
-                        _worldPosHitsNextFrame[visualIndex] = new HitRenderData
-                        {
-                            pos = requestedCircle.Center,
-                            radius = requestedCircle.Radius,
-                            color = new float4(1, 0, 0, 0.75f)
-                        };
-                    }
-                }
-
-                if (visualAvailable)
-                {
-                    assignedHandIndex = _djAutoInputCount;
-                    _djAutoHandsNextFrame[_djAutoInputCount++] = new DJAutoHandData
-                    {
-                        Circle = requestedCircle,
-                        VisualKind = visualKind,
-                        VisualIndex = visualIndex
-                    };
-                    accepted = true;
-                }
-            }
-
-            // 两只手都占用后，再尝试扩大已有的手。
-            if (!accepted)
-                accepted = TryExpandDJAutoHand(
-                    requestedCircle,
-                    requestedSensors,
-                    excludedHandIndex,
-                    out assignedHandIndex);
-
-            Interlocked.Exchange(ref _djAutoHandsWriteLock, 0);
-            return accepted;
-        }
-
-        private bool TryExpandDJAutoHand(
-            Circle requestedCircle,
-            ulong requestedSensors,
-            int excludedHandIndex,
-            out int assignedHandIndex)
-        {
-            assignedHandIndex = -1;
-            int bestHandIndex = -1;
-            int bestAddedSensorCount = int.MaxValue;
-            float bestRadiusGrowth = float.MaxValue;
-            float bestRadius = 0f;
-
-            for (int handIndex = 0; handIndex < _djAutoInputCount; handIndex++)
-            {
-                if (handIndex == excludedHandIndex) continue;
-
-                Circle oldCircle = _djAutoHandsNextFrame[handIndex].Circle;
-                float expandedRadius = 0f;
-                if (requestedSensors != 0)
-                {
-                    for (int sensorIndex = 0; sensorIndex < SENSOR_COUNT; sensorIndex++)
-                    {
-                        if ((requestedSensors & (1ul << sensorIndex)) == 0) continue;
-
-                        float distance = math.distance(oldCircle.Center, SensorWorldPositions[sensorIndex]);
-                        float sensorRadius = MajPos.GetSensorRadius((SensorType)sensorIndex);
-                        expandedRadius = math.max(expandedRadius, math.max(0f, distance - sensorRadius));
-                    }
-                }
-                else
-                {
-                    expandedRadius = math.distance(oldCircle.Center, requestedCircle.Center) +
-                                     requestedCircle.Radius;
-                }
-
-                expandedRadius = math.max(expandedRadius, oldCircle.Radius);
-                if (expandedRadius > InputManager.DJAUTO_HAND_MAX_RADIUS + 1e-4f)
-                    continue;
-
-                Circle expandedCircle = oldCircle;
-                expandedCircle.Radius = expandedRadius;
-                ulong oldSensors = GetSensorMask(oldCircle);
-                ulong expandedSensors = GetSensorMask(expandedCircle);
-                if (requestedSensors != 0 &&
-                    (expandedSensors & requestedSensors) != requestedSensors)
-                    continue;
-
-                int addedSensorCount = math.countbits(expandedSensors & ~oldSensors);
-                float radiusGrowth = expandedRadius - oldCircle.Radius;
-                if (addedSensorCount > bestAddedSensorCount ||
-                    (addedSensorCount == bestAddedSensorCount && radiusGrowth >= bestRadiusGrowth))
-                    continue;
-
-                bestHandIndex = handIndex;
-                bestAddedSensorCount = addedSensorCount;
-                bestRadiusGrowth = radiusGrowth;
-                bestRadius = expandedRadius;
-            }
-
-            if (bestHandIndex < 0) return false;
-
-            DJAutoHandData hand = _djAutoHandsNextFrame[bestHandIndex];
-            Circle oldBestCircle = hand.Circle;
-            hand.Circle.Radius = bestRadius;
-            _djAutoHandsNextFrame[bestHandIndex] = hand;
-
-            if (hand.VisualIndex >= 0 && hand.VisualKind == DJAutoHandVisualKind.Coverage)
-            {
-                CoverResult cover = _activeCoveragesNextFrame[hand.VisualIndex];
-                cover.Circle1 = hand.Circle;
-                _activeCoveragesNextFrame[hand.VisualIndex] = cover;
-            }
-            else if (hand.VisualIndex >= 0 && hand.VisualKind == DJAutoHandVisualKind.WorldHit)
-            {
-                HitRenderData hit = _worldPosHitsNextFrame[hand.VisualIndex];
-                hit.radius = hand.Circle.Radius;
-                _worldPosHitsNextFrame[hand.VisualIndex] = hit;
-            }
-
-            ulong newlyCoveredSensors = GetSensorMask(hand.Circle) & ~GetSensorMask(oldBestCircle);
-            SetSensorsFromMask(newlyCoveredSensors);
-            assignedHandIndex = bestHandIndex;
-            return true;
-        }
-
-        private ulong GetSensorMask(Circle circle)
-        {
-            ulong mask = 0;
-            for (int sensorIndex = 0; sensorIndex < SENSOR_COUNT; sensorIndex++)
-            {
-                ref readonly var sensorPos = ref SensorWorldPositions.ElementRef(sensorIndex);
-                float combinedRadius = circle.Radius + MajPos.GetSensorRadius((SensorType)sensorIndex);
-                if (math.distancesq(sensorPos, circle.Center) <=
-                    combinedRadius * combinedRadius + 1e-4f)
-                {
-                    mask |= 1ul << sensorIndex;
-                }
-            }
-            return mask;
-        }
-
-        private void SetSensorsFromMask(ulong sensorMask)
-        {
-            for (int sensorIndex = 0; sensorIndex < SENSOR_COUNT; sensorIndex++)
-            {
-                if ((sensorMask & (1ul << sensorIndex)) != 0)
-                    SetNextFrameSensorOn((SensorType)sensorIndex);
-            }
-        }
-
-        /// <summary>
-        /// DJAuto处理星星
-        /// </summary>
-        public void DJAutoHandleWorldPosition(in float2 pos, float radius = InputManager.DJAUTO_HAND_RADIUS)
-        {
-            var hand = new Circle { Center = pos, Radius = radius };
-            if (TryRequestDJAutoHand(hand, DJAutoHandVisualKind.WorldHit, out _))
-                SetSensorsFromMask(GetSensorMask(hand));
-        }
-        /// <summary>
-        /// DJAuto处理wifi星星
-        /// </summary>
-        public void DJAutoHandleWifiWorldPosition(in float2 leftPos, in float2 rightPos)
-        {
-            var leftHand = new Circle { Center = leftPos, Radius = InputManager.DJAUTO_WIFI_RADIUS };
-            int leftHandIndex = -1;
-            if (TryRequestDJAutoHand(
-                leftHand,
-                DJAutoHandVisualKind.WorldHit,
-                out leftHandIndex))
-            {
-                SetSensorsFromMask(GetSensorMask(leftHand));
-            }
-
-            var rightHand = new Circle { Center = rightPos, Radius = InputManager.DJAUTO_WIFI_RADIUS };
-            if (TryRequestDJAutoHand(
-                rightHand,
-                DJAutoHandVisualKind.WorldHit,
-                out _,
-                leftHandIndex))
-            {
-                SetSensorsFromMask(GetSensorMask(rightHand));
-            }
-        }
-
-
-
         // ======User Input Part======
 
         public void BeginHandler(bool showHandThisFrame)
         {
             _showHandThisFrame = showHandThisFrame;
-            _djAutoInputCount = 0;
-
-            // DJAuto 的判定状态和手部显示使用同一份 next-frame 数据，避免画面领先一帧。
-            var coverageCount = math.min(
-                Interlocked.Exchange(ref _activeCoveragesNextFrameCount, 0),
-                ActiveCoverages.Length);
-            *ActiveCoveragesCountPtr = coverageCount;
-            for (int i = 0; i < coverageCount; i++)
-                ActiveCoverages[i] = _activeCoveragesNextFrame[i];
 
             var hitCount = math.min(
                 Interlocked.Exchange(ref _worldPosHitsNextFrameCount, 0),
@@ -623,7 +258,7 @@ namespace MajdataViewX.Managers
         /// 处理世界坐标（手）输入
         /// </summary>
         /// <param name="nextFrame">是否应用到下一帧（DJAuto）</param>
-        public void HandleWorldPosInput(in float2 pos, float radius = InputManager.DJAUTO_HAND_RADIUS, bool nextFrame = false)
+        public void HandleWorldPosInput(in float2 pos, float radius = InputManager.DEFAULT_HAND_RADIUS, bool nextFrame = false)
         {
             for (int i = 0; i < SensorWorldPositions.Length; i++)
             {
@@ -715,29 +350,6 @@ namespace MajdataViewX.Managers
                         };
                     }
                 }
-
-                for (int i = 0; i < math.min(*ActiveCoveragesCountPtr, ActiveCoverages.Length); i++)
-                {
-                    var cover = ActiveCoverages[i];
-                    var idx1 = Interlocked.Increment(ref *HitWriteCountPtr) - 1;
-                    hitRender[idx1] = new HitRenderData
-                    {
-                        pos = cover.Circle1.Center,
-                        radius = cover.Circle1.Radius,
-                        color = new float4(0.5f, 1f, 0.5f, 0.6f) // Light green
-                    };
-
-                    if (cover.Mode == CoverMode.DoubleCircleDirect || cover.Mode == CoverMode.DoubleCircleGroup || cover.Mode == CoverMode.DoubleCircleSlide)
-                    {
-                        var idx2 = Interlocked.Increment(ref *HitWriteCountPtr) - 1;
-                        hitRender[idx2] = new HitRenderData
-                        {
-                            pos = cover.Circle2.Center,
-                            radius = cover.Circle2.Radius,
-                            color = new float4(0.5f, 1f, 0.5f, 0.6f)
-                        };
-                    }
-                }
             }
         }
 
@@ -778,10 +390,6 @@ namespace MajdataViewX.Managers
 
         public void ResetState()
         {
-            _djAutoInputCount = 0;
-            _djAutoHandsWriteLock = 0;
-            *ActiveCoveragesCountPtr = 0;
-            _activeCoveragesNextFrameCount = 0;
             _worldPosHitsNextFrameCount = 0;
 
             for (var i = 0; i < BUTTON_COUNT; i++)
@@ -812,11 +420,7 @@ namespace MajdataViewX.Managers
             if (_nextButtonIndex.IsCreated) _nextButtonIndex.Dispose();
             if (_nextButtonIndexNextFrame.IsCreated) _nextButtonIndexNextFrame.Dispose();
 
-            if (_djAutoHandsNextFrame.IsCreated) _djAutoHandsNextFrame.Dispose();
-            if (ActiveCoverages.IsCreated) ActiveCoverages.Dispose();
-            if (_activeCoveragesNextFrame.IsCreated) _activeCoveragesNextFrame.Dispose();
             if (_worldPosHitsNextFrame.IsCreated) _worldPosHitsNextFrame.Dispose();
-            if (ActiveCoveragesCountPtr != null) UnsafeUtility.Free(ActiveCoveragesCountPtr, Allocator.Persistent);
         }
     }
 

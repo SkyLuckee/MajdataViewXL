@@ -242,13 +242,14 @@ namespace MajdataViewX.Notes.Updaters
             // 模拟模式下，快星星会划到底，慢星星就不会黏在最后一个区
             // 所以IsJudged之后晚100ms再松手，如果这100ms以内已经IsSlideEnd了那就直接松
             // 非模拟模式下IsJudged和IsSlideEnd同步所以行为不变
+            // TODO: 移动该逻辑到新版本
             if (slide.isEnd || slide.isSlideEnd ||
                (slide.isJudged && TimeData.NoteTime > slide.judgeTime + InputManager.DJAUTO_SLIDE_RELEASE_DELAY_SEC)
             ) return;
             var timing = TimeData.NoteTime - slide.shootTime;
             var autoplayStart = NoteHelper.AutoPlayMode == AutoPlayMode.DJAutoButton && slide.hasTapGuide
-                ? InputManager.DJAUTO_SLIDE_TAP_GUIDE_DELAY_SEC // 外键的DJAuto拍划🤝
-                : InputManager.DJAUTO_AUTOPLAY_START_SEC;
+                ? InputManager.DJAUTO_SLIDE_TAP_GUIDE_DELAY_SEC // 外键拍划enabled也尊重一下🤝
+                : InputManager.AUTOPLAY_START_SEC;
             if (timing < autoplayStart) return;
             switch (NoteHelper.AutoPlayMode)
             {
@@ -311,60 +312,6 @@ namespace MajdataViewX.Notes.Updaters
                 case AutoPlayMode.DJAutoSensor:
                 case AutoPlayMode.Disable: // disable也要处理mine情况
                     {
-                        // 不是 mine slide 的话就只需要产生输入就行了
-                        if (!slide.isMine)
-                        {
-                            // Folded Slide 与可见副本轨迹完全相同，只消费可见副本产生的输入，
-                            // 不计算手位，也不进入申请、扩圆或合并流程。
-                            if (slide.isFolded) break;
-
-                            if (NoteHelper.AutoPlayMode is AutoPlayMode.Disable) break;
-
-                            // 启动 Tap 只负责把 DJAuto 的输入推迟几帧，不能同时吃掉 Slide 的起始轨迹。
-                            // 因此输入开始时从路径起点重新走，画面上的星星仍保持原来的时间轴。
-                            var inputProcess = autoplayStart > 0
-                                ? math.saturate((timing - autoplayStart) / math.max(slide.LastFor, 0.001f))
-                                : slide.process;
-
-                            if (!slide.isWifi)
-                            {
-                                if (autoplayStart <= 0)
-                                {
-                                    InputData.DJAutoHandleWorldPosition(slide.starPos);
-                                    return;
-                                }
-
-                                var lastIndex = slide.slideArrowsCount - 1;
-                                var distance = inputProcess * slide.slideArrows[lastIndex].L;
-                                var nextIndex = 1;
-                                while (nextIndex < lastIndex && slide.slideArrows[nextIndex].L < distance)
-                                    nextIndex++;
-
-                                var previous = slide.slideArrows[nextIndex - 1];
-                                var next = slide.slideArrows[nextIndex];
-                                var progress = math.unlerp(previous.L, next.L, distance);
-                                InputData.DJAutoHandleWorldPosition(
-                                    new float2(
-                                        math.lerp(previous.X, next.X, progress),
-                                        math.lerp(previous.Y, next.Y, progress)
-                                    )
-                                );
-                            }
-                            else
-                            {
-                                //划wifi时使用大手子
-                                var center = slide.starPosConstC * inputProcess + slide.starPosStart;
-                                var left = slide.starPosConstL * inputProcess + slide.starPosStart;
-                                var right = slide.starPosConstR * inputProcess + slide.starPosStart;
-                                InputData.DJAutoHandleWifiWorldPosition(
-                                    (left + center) / 2,
-                                    (right + center) / 2
-                                );
-                            }
-
-                            break;
-                        }
-
                         // Mine slide 逻辑上是程序自动推进，故不进入 DJAuto 正常流程（否则会占用手）
                         if (!slide.mineAutoSlide) break;
 

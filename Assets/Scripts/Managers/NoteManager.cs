@@ -1,6 +1,7 @@
 using MajdataViewX.Base;
 using MajdataViewX.Notes.NoteDatas;
 using MajdataViewX.Notes.Updaters;
+using MajdataViewX.Types.Input;
 using MajdataViewX.Types.Notes.RenderData;
 using MajdataViewX.Types.Rendering;
 using MajdataViewX.Utils;
@@ -34,13 +35,14 @@ namespace MajdataViewX.Managers
         NativeList<TouchData> touches = new(1024, Allocator.Persistent);
         NativeList<TouchHoldData> touchHolds = new(1024, Allocator.Persistent);
 
+        NativeList<DJAutoHitData> hits = new(1024, Allocator.Persistent);
+        NativeList<DJAutoSwipeData> swipes = new(1024, Allocator.Persistent);
+
         NativeList<int> touchGroupTotalCounts = new(256, Allocator.Persistent);
         NativeList<int> touchGroupJudgedCounts = new(256, Allocator.Persistent);
-        NativeList<CoverResult> touchGroupCoverResults = new(256, Allocator.Persistent);
 
         NativeList<int> touchHoldGroupTotalCounts = new(256, Allocator.Persistent);
         NativeList<int> touchHoldGroupPressedCounts = new(256, Allocator.Persistent);
-        NativeList<CoverResult> touchHoldGroupCoverResults = new(256, Allocator.Persistent);
 
         RenderGroup<LineRenderData> _tapLineGroup;
         RenderGroup<LineRenderData> _eachLineGroup;
@@ -250,10 +252,8 @@ namespace MajdataViewX.Managers
                         ReportResults = _objectCounter.ReportRequestsWriter,
                         touchGroupTotalCounts = touchGroupTotalCounts.AsArray(),
                         touchGroupJudgedCounts = touchGroupJudgedCounts.AsArray(),
-                        touchGroupCoverResults = touchGroupCoverResults.AsArray(),
                         touchHoldGroupTotalCounts = touchHoldGroupTotalCounts.AsArray(),
                         touchHoldGroupPressedCounts = touchHoldGroupPressedCounts.AsArray(),
-                        touchHoldGroupCoverResults = touchHoldGroupCoverResults.AsArray(),
                     }.Schedule(touchHolds.Length, 32, h);
 
                 if (taps.Length > 0)
@@ -290,7 +290,6 @@ namespace MajdataViewX.Managers
                         ReportResults = _objectCounter.ReportRequestsWriter,
                         touchGroupTotalCounts = touchGroupTotalCounts.AsArray(),
                         touchGroupJudgedCounts = touchGroupJudgedCounts.AsArray(),
-                        touchGroupCoverResults = touchGroupCoverResults.AsArray(),
                     }.Schedule(touches.Length, 32, h);
 
                 var tapLineSort = _tapLineGroup.ScheduleSort(h);
@@ -368,13 +367,13 @@ namespace MajdataViewX.Managers
             if (slides.IsCreated) slides.Dispose();
             if (touches.IsCreated) touches.Dispose();
             if (touchHolds.IsCreated) touchHolds.Dispose();
+            if (swipes.IsCreated) swipes.Dispose();
+            if (hits.IsCreated) hits.Dispose();
 
             if (touchGroupTotalCounts.IsCreated) touchGroupTotalCounts.Dispose();
             if (touchGroupJudgedCounts.IsCreated) touchGroupJudgedCounts.Dispose();
-            if (touchGroupCoverResults.IsCreated) touchGroupCoverResults.Dispose();
             if (touchHoldGroupTotalCounts.IsCreated) touchHoldGroupTotalCounts.Dispose();
             if (touchHoldGroupPressedCounts.IsCreated) touchHoldGroupPressedCounts.Dispose();
-            if (touchHoldGroupCoverResults.IsCreated) touchHoldGroupCoverResults.Dispose();
         }
 
         public void ResetState()
@@ -386,13 +385,13 @@ namespace MajdataViewX.Managers
             slides.Clear();
             touches.Clear();
             touchHolds.Clear();
+            hits.Clear();
+            swipes.Clear();
 
             touchGroupTotalCounts.Clear();
             touchGroupJudgedCounts.Clear();
-            touchGroupCoverResults.Clear();
             touchHoldGroupTotalCounts.Clear();
             touchHoldGroupPressedCounts.Clear();
-            touchHoldGroupCoverResults.Clear();
             unsafe
             {
                 if (slideAreaPool != null)

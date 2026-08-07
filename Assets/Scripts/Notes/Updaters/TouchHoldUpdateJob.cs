@@ -42,10 +42,8 @@ namespace MajdataViewX.Notes.Updaters
 
         [ReadOnly] public NativeArray<int> touchGroupTotalCounts;
         [NativeDisableParallelForRestriction] public NativeArray<int> touchGroupJudgedCounts;
-        [ReadOnly] public NativeArray<CoverResult> touchGroupCoverResults;
         [ReadOnly] public NativeArray<int> touchHoldGroupTotalCounts;
         [ReadOnly] public NativeArray<int> touchHoldGroupPressedCounts;
-        [ReadOnly] public NativeArray<CoverResult> touchHoldGroupCoverResults;
 
         public void Execute(int index)
         {
@@ -179,7 +177,7 @@ namespace MajdataViewX.Notes.Updaters
             if (NoteHelper.AutoPlayMode is AutoPlayMode.Disable) return;
 
             var timing = TimeData.NoteTime - th.time;
-            if (timing < InputManager.DJAUTO_AUTOPLAY_START_SEC) return;
+            if (timing < InputManager.AUTOPLAY_START_SEC) return;
 
             switch (NoteHelper.AutoPlayMode)
             {
@@ -222,21 +220,6 @@ namespace MajdataViewX.Notes.Updaters
                             EndNote(ref th);
                             return;
                         }
-                    }
-                    break;
-                case AutoPlayMode.DJAutoButton:
-                case AutoPlayMode.DJAutoSensor:
-                    if (th.isMine) break;
-                    // 头判阶段用 touchGroup 覆盖(和 touch 共享)，hold 阶段用 touchHoldGroup 覆盖
-                    if (!th.isHeadJudged)
-                    {
-                        if (th.headCoverageId >= 0)
-                            InputData.DJAutoAddGroupCoverage(touchGroupCoverResults[th.headCoverageId], timing);
-                    }
-                    else if (math.max(th.LastFor - timing, 0) > 0)
-                    {
-                        if (th.coverageId >= 0)
-                            InputData.DJAutoAddGroupCoverage(touchHoldGroupCoverResults[th.coverageId]);
                     }
                     break;
             }

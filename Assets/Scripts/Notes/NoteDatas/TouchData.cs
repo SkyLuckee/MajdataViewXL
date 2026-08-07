@@ -44,12 +44,10 @@ namespace MajdataViewX.Notes.NoteDatas
         public float diff;
 
         public int groupId;
-        public int coverageId;
 
         public void Init()
         {
             groupId = -1;
-            coverageId = -1;
             fanAlpha = 0;
 
             centerPos = MajPos.GetAreaPos(sensor);

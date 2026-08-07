@@ -36,7 +36,6 @@ namespace MajdataViewX.Notes.Updaters
 
         [ReadOnly] public NativeArray<int> touchGroupTotalCounts;
         [NativeDisableParallelForRestriction] public NativeArray<int> touchGroupJudgedCounts;
-        [ReadOnly] public NativeArray<CoverResult> touchGroupCoverResults;
 
         public void Execute(int index)
         {
@@ -173,11 +172,7 @@ namespace MajdataViewX.Notes.Updaters
             if (NoteHelper.AutoPlayMode is AutoPlayMode.Disable) return;
 
             var timing = TimeData.NoteTime - touch.time;
-            if (touch.coverageId < 0 && NoteHelper.IsSimulated) return;
-            var autoplayStart = NoteHelper.AutoPlayMode is AutoPlayMode.DJAutoButton or AutoPlayMode.DJAutoSensor &&
-                                touchGroupCoverResults[touch.coverageId].Mode == CoverMode.DoubleCircleSlide
-                    ? InputManager.DJAUTO_TOUCH_DOUBLE_CIRCLE_SLIDE_START_SEC
-                    : InputManager.DJAUTO_AUTOPLAY_START_SEC;
+            var autoplayStart = InputManager.AUTOPLAY_START_SEC;
 
             if (timing < autoplayStart) return;
 
@@ -197,17 +192,6 @@ namespace MajdataViewX.Notes.Updaters
                     touch.isJudged = true;
                     touch.diff = grade >= JudgeGrade.LateCritical ? 11.4514f : -11.4514f;
                     EndNote(ref touch);
-                    break;
-                case AutoPlayMode.DJAutoButton:
-                case AutoPlayMode.DJAutoSensor:
-                    if (touch.isMine) break;
-                    if (!touch.isJudged)
-                    {
-                        if (!touch.isSlideGuide)
-                        {
-                            InputData.DJAutoAddGroupCoverage(touchGroupCoverResults[touch.coverageId], timing);
-                        }
-                    }
                     break;
             }
         }

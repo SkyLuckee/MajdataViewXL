@@ -1,6 +1,8 @@
 using MajdataViewX.Base;
+using MajdataViewX.Notes;
 using MajdataViewX.Notes.NoteDatas;
 using MajdataViewX.Notes.SlideUtils;
+using MajdataViewX.Types.Enums;
 using MajdataViewX.Types.Input;
 using MajdataViewX.Utils;
 using MajdataViewX.Utils.Extensions;
@@ -13,13 +15,25 @@ using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.InputSystem.EnhancedTouch;
+using UnityEngine.UIElements;
 using static MajdataViewX.Base.MajCtx;
+using static UnityEngine.Rendering.HableCurve;
 
 namespace MajdataViewX.Managers
 {
-
     public partial class NoteManager
     {
+        public const float DJAUTO_TAP_RELEASE_TIME_SEC = 0.022f;
+        public const float DJAUTO_TOUCH_RELEASE_TIME_SEC = 0.022f;
+
+        // Tap/Hold/Slide默认尺寸
+        public const float DJAUTO_HAND_RADIUS = 0.45f;
+        // Wifi默认尺寸
+        public const float DJAUTO_WIFI_RADIUS = 1.00f;
+        // 所有 DJAuto 手势复用时允许扩大的最大半径。
+        public const float DJAUTO_HAND_MAX_RADIUS = 1.80f;
+
         public float NoteSpeed = 7f;
         public float TouchSpeed = 7.5f;
         public bool LegacySlideLayer = false;
@@ -44,6 +58,7 @@ namespace MajdataViewX.Managers
         {
             if (chart.IsEmpty) return;
             _prevChain.Complete();
+
             ConfigureRenderCapacity(chart);
 
             // 防御性清空：正常流程下 Stop 时 ResetState 已清空，
@@ -54,12 +69,12 @@ namespace MajdataViewX.Managers
             slides.Clear();
             touches.Clear();
             touchHolds.Clear();
+            hits.Clear();
+            swipes.Clear();
             touchGroupTotalCounts.Clear();
             touchGroupJudgedCounts.Clear();
-            touchGroupCoverResults.Clear();
             touchHoldGroupTotalCounts.Clear();
             touchHoldGroupPressedCounts.Clear();
-            touchHoldGroupCoverResults.Clear();
 
             areaPoolIndex = 0;
             posePoolIndex = 0;
@@ -75,6 +90,9 @@ namespace MajdataViewX.Managers
                 else
                     loadedTouches[i] = new();
 
+
+
+
             foreach (var timing in chart.NoteTimings)
             {
                 if (timing.Timing < Ignore)
@@ -83,7 +101,16 @@ namespace MajdataViewX.Managers
                     LoadTiming(timing);
             }
 
+
+
+
+
             MarkSlideGuideNotes();
+
+
+
+
+
 
             slideAreaPool = (SlideArea*)UnsafeUtility.Malloc(
                 areaPoolIndex * sizeof(SlideArea),
@@ -94,12 +121,17 @@ namespace MajdataViewX.Managers
 
             for (var i = 0; i < slides.Length; i++)
             {
-                var slide = slides[i];
+                ref var slide = ref slides.ElementRef(i);
                 slide.judgeQueue = slideAreaPool + slide.judgeQueueOffset;
                 slide.judgeQueueL = slideAreaPool + slide.judgeQueueLOffset;
                 slide.judgeQueueR = slideAreaPool + slide.judgeQueueROffset;
                 slide.slideArrows = slidePosePool + slide.slideArrowsOffset;
-                slides[i] = slide;
+            }
+            for (var i = 0; i < swipes.Length; i++)
+            {
+                ref var swipe = ref swipes.ElementRef(i);
+                if (swipe.ArrowCount > 0)   // wifi (ArrowCount==0) 用内联端点，不回填 Arrows
+                    swipe.Arrows = slidePosePool + swipe.ArrowsOffset;
             }
 
             var cur1 = 0;
@@ -136,7 +168,6 @@ namespace MajdataViewX.Managers
 
         private static int GetSlideGuideTimeKey(float timing) =>
             (int)math.round(timing * 1000f);
-
         private void MarkSlideGuideNotes()
         {
             var tapLookup = new Dictionary<(int Time, SensorType Sensor), List<int>>();
@@ -198,10 +229,15 @@ namespace MajdataViewX.Managers
                 slides[i] = slide;
             }
         }
-        private void LoadIgnore(in SimaiTimingPoint timing)
+
+
+        public void PreprocessHitsAndSwipes()
         {
-            _objectCounter.CountIgnoreNoteCountAsync(timing.Notes);
+            if (NoteHelper.AutoPlayMode is not (AutoPlayMode.DJAutoButton or AutoPlayMode.DJAutoSensor)) return;
+
+
         }
+
 
         private void CalcEach(in SimaiTimingPoint timing, out bool isNoteEach, out bool isSlideEach)
         {
@@ -233,37 +269,10 @@ namespace MajdataViewX.Managers
             isSlideEach = slideCount > 1;
         }
 
-        protected virtual void OnNoteLoadFailed(SimaiNote note, Exception e)
+        private void LoadIgnore(in SimaiTimingPoint timing)
         {
-            var sb = new StringBuilder();
-            sb.AppendLine($"[Note Load Failed] Exception: {e.Message}");
-            if (e.InnerException != null)
-            {
-                sb.AppendLine($"  ---> Inner Exception: {e.InnerException.Message}");
-            }
-            sb.AppendLine($"  Stack Trace:");
-            sb.AppendLine(e.StackTrace);
-            sb.AppendLine("Note Properties:");
-            try
-            {
-                foreach (var prop in typeof(SimaiNote).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
-                {
-                    sb.AppendLine($"  {prop.Name}: {prop.GetValue(note)}");
-                }
-                foreach (var field in typeof(SimaiNote).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
-                {
-                    sb.AppendLine($"  {field.Name}: {field.GetValue(note)}");
-                }
-            }
-            catch (Exception ex)
-            {
-                sb.AppendLine($"  (Failed to reflect properties: {ex.Message})");
-            }
-            var errorMsg = sb.ToString();
-            Debug.LogError(errorMsg);
-            _wsServer.Error(errorMsg);
+            _objectCounter.CountIgnoreNoteCountAsync(timing.Notes);
         }
-
         /// <remarks>
         /// 本来isEach在isMine时应该被忽略，但实际上
         /// isEach对判定并无影响，主要取其skin的区别，
@@ -401,20 +410,17 @@ namespace MajdataViewX.Managers
         private struct TouchGroupBuild
         {
             public int[] MemberGroupIds;
-            public int CoverageId;
         }
 
         /// <summary>
-        /// 把同 timing 的一批 touch 类 note 按传感器邻接关系聚成判定 group，并算出 DJAuto 覆盖。
+        /// 把同 timing 的一批 touch 类 note 按传感器邻接关系聚成判定 group。
         /// 算法：去重(同 sensor 合并) -> BFS 连通分量 -> 分量内 ≥5 个 sensor 才建 group(多数通过)。
         /// group 的 totalCount 等计数由调用方传入的 list 承接，groupId 即追加时的下标。
         /// </summary>
         private static TouchGroupBuild BuildTouchGroups(
             IReadOnlyList<SensorType> sensors,
             NativeList<int> totalCountsOut,
-            NativeList<int> counterOut,
-            NativeList<CoverResult> coverResultsOut,
-            bool allowSlide)
+            NativeList<int> counterOut)
         {
             int count = sensors.Count;
             var memberGroupIds = new int[count];
@@ -440,13 +446,12 @@ namespace MajdataViewX.Managers
 
             int uniqueCount = uniqueIndices.Count;
             if (uniqueCount == 0)
-                return new TouchGroupBuild { MemberGroupIds = memberGroupIds, CoverageId = -1 };
+                return new TouchGroupBuild { MemberGroupIds = memberGroupIds };
 
             // 2. BFS 连通分量：TOUCH_GROUPS 邻接关系
             var visited = new bool[uniqueCount];
             var uniqueGroupIds = new int[uniqueCount];
             for (int i = 0; i < uniqueCount; i++) uniqueGroupIds[i] = -1;
-            var groups = new List<Group>();
 
             for (int i = 0; i < uniqueCount; i++)
             {
@@ -487,39 +492,22 @@ namespace MajdataViewX.Managers
                 totalCountsOut.Add(total);
                 counterOut.Add(0);
 
-                var groupDef = new Group { PointIndices = new int[component.Count] };
                 for (int k = 0; k < component.Count; k++)
                 {
                     int u = component[k];
                     uniqueGroupIds[u] = groupId;
-                    groupDef.PointIndices[k] = u;
                 }
-                groups.Add(groupDef);
             }
 
             // 4. 回填每个 member 的 groupId
             for (int i = 0; i < count; i++)
                 memberGroupIds[i] = uniqueGroupIds[memberToUnique[i]];
 
-            // 5. 算 DJAuto 覆盖（以 unique 传感器点位求解）
-            var points = new float2[uniqueCount];
-            var pointRadii = new float[uniqueCount];
-            for (int i = 0; i < uniqueCount; i++)
-            {
-                var sensor = sensors[uniqueIndices[i]];
-                points[i] = MajPos.GetSensorWorldPos(sensor);
-                pointRadii[i] = MajPos.GetSensorRadius(sensor);
-            }
-            var cover = CoverageSolver.Solve(points, pointRadii, groups, allowSlide: allowSlide);
-
-            int coverageId = coverResultsOut.Length;
-            coverResultsOut.Add(cover);
-
-            return new TouchGroupBuild { MemberGroupIds = memberGroupIds, CoverageId = coverageId };
+            return new TouchGroupBuild { MemberGroupIds = memberGroupIds };
         }
 
         /// <summary>
-        /// 头判 group：仅 touch 之间多数通过。写 touch 的 groupId/coverageId。
+        /// 头判 group：仅 touch 之间多数通过。写 touch 的 groupId。
         /// </summary>
         private void ProcessTouchGroups(int startIdx, int count)
         {
@@ -534,13 +522,12 @@ namespace MajdataViewX.Managers
                 idx.Add(i);
             }
 
-            var build = BuildTouchGroups(sensors, touchGroupTotalCounts, touchGroupJudgedCounts, touchGroupCoverResults, allowSlide: true);
+            var build = BuildTouchGroups(sensors, touchGroupTotalCounts, touchGroupJudgedCounts);
 
             for (int k = 0; k < idx.Count; k++)
             {
                 var t = touches[startIdx + idx[k]];
                 t.groupId = build.MemberGroupIds[k];
-                t.coverageId = build.CoverageId;
                 touches[startIdx + idx[k]] = t;
             }
         }
@@ -563,17 +550,15 @@ namespace MajdataViewX.Managers
             }
 
             // 头判 group：与 touch 头判分开，独立多数通过
-            var headBuild = BuildTouchGroups(sensors, touchGroupTotalCounts, touchGroupJudgedCounts, touchGroupCoverResults, allowSlide: true);
+            var headBuild = BuildTouchGroups(sensors, touchGroupTotalCounts, touchGroupJudgedCounts);
             // 按下 group：hold 期间多数按下
-            var holdBuild = BuildTouchGroups(sensors, touchHoldGroupTotalCounts, touchHoldGroupPressedCounts, touchHoldGroupCoverResults, allowSlide: false);
+            var holdBuild = BuildTouchGroups(sensors, touchHoldGroupTotalCounts, touchHoldGroupPressedCounts);
 
             for (int k = 0; k < idx.Count; k++)
             {
                 var t = touchHolds[startIdx + idx[k]];
                 t.headGroupId = headBuild.MemberGroupIds[k];
-                t.headCoverageId = headBuild.CoverageId;
                 t.groupId = holdBuild.MemberGroupIds[k];
-                t.coverageId = holdBuild.CoverageId;
                 touchHolds[startIdx + idx[k]] = t;
             }
         }
@@ -647,6 +632,28 @@ namespace MajdataViewX.Managers
             }
             tap.Init();
             taps.Add(tap);
+
+            if (!note.IsMine)
+                switch (NoteHelper.AutoPlayMode)
+                {
+                    case AutoPlayMode.DJAutoButton:
+                        hits.Add(new DJAutoHitData(
+                            (int)tap.Key,
+                            tap.Time,
+                            tap.Time + DJAUTO_TAP_RELEASE_TIME_SEC,
+                            false,
+                            false));
+                        break;
+                    case AutoPlayMode.DJAutoSensor:
+                        hits.Add(new DJAutoHitData(
+                            MajPos.GetSensorWorldPos(tap.Key),
+                            DJAUTO_HAND_RADIUS,
+                            tap.Time,
+                            tap.Time + DJAUTO_TAP_RELEASE_TIME_SEC,
+                            false,
+                            false));
+                        break;
+                }
         }
 
         private void LoadHold(
@@ -680,6 +687,28 @@ namespace MajdataViewX.Managers
             }
             hold.Init();
             holds.Add(hold);
+
+            if (!note.IsMine)
+                switch (NoteHelper.AutoPlayMode)
+                {
+                    case AutoPlayMode.DJAutoButton:
+                        hits.Add(new DJAutoHitData(
+                            (int)hold.Key,
+                            hold.time,
+                            hold.time + hold.LastFor,
+                            false,
+                            false));
+                        break;
+                    case AutoPlayMode.DJAutoSensor:
+                        hits.Add(new DJAutoHitData(
+                            MajPos.GetSensorWorldPos(hold.Key),
+                            DJAUTO_HAND_RADIUS,
+                            hold.time,
+                            hold.time + hold.LastFor,
+                            false,
+                            false));
+                        break;
+                }
         }
 
         private void LoadTouch(
@@ -718,6 +747,16 @@ namespace MajdataViewX.Managers
                 IsBreak = note.IsBreak,
                 IsMine = note.IsMine
             });
+
+            if (!note.IsMine &&
+                NoteHelper.AutoPlayMode is AutoPlayMode.DJAutoButton or AutoPlayMode.DJAutoSensor)
+                hits.Add(new DJAutoHitData(
+                    MajPos.GetSensorWorldPos(touch.sensor),
+                    DJAUTO_HAND_RADIUS,
+                    touch.time,
+                    touch.time + DJAUTO_TOUCH_RELEASE_TIME_SEC,
+                            true,
+                    false));
         }
 
         private void LoadTouchHold(
@@ -751,6 +790,16 @@ namespace MajdataViewX.Managers
             }
             th.Init();
             touchHolds.Add(th);
+
+            if (!note.IsMine &&
+                NoteHelper.AutoPlayMode is AutoPlayMode.DJAutoButton or AutoPlayMode.DJAutoSensor)
+                hits.Add(new DJAutoHitData(
+                    MajPos.GetSensorWorldPos(th.sensor),
+                    DJAUTO_HAND_RADIUS,
+                    th.time,
+                    th.time + th.LastFor,
+                            true,
+                    false));
         }
 
         private string LoadSlideChain(
@@ -849,6 +898,17 @@ namespace MajdataViewX.Managers
                 slide.Init();
                 slides.Add(slide);
 
+                if (!note.IsMine &&
+                    NoteHelper.AutoPlayMode is AutoPlayMode.DJAutoButton or AutoPlayMode.DJAutoSensor &&
+                    sameSlideCount == 1) // slide跟别人一样就不用鸟
+                    swipes.Add(new DJAutoSwipeData(
+                        slide.slideArrowsOffset,
+                        slide.slideArrowsCount,
+                        DJAUTO_WIFI_RADIUS,
+                        slide.shootTime,
+                        slide.shootTime + slide.LastFor,
+                        true));
+
                 areaPoolIndex += judgeQueueCount + judgeQueueLCount + judgeQueueRCount;
                 posePoolIndex += slideArrowsCount;
             }
@@ -919,6 +979,17 @@ namespace MajdataViewX.Managers
                 slide.Init();
                 slides.Add(slide);
 
+                if (!note.IsMine &&
+                    NoteHelper.AutoPlayMode is AutoPlayMode.DJAutoButton or AutoPlayMode.DJAutoSensor &&
+                    sameSlideCount == 1) // slide跟别人一样就不用鸟
+                    swipes.Add(new DJAutoSwipeData(
+                        slide.slideArrowsOffset,
+                        slide.slideArrowsCount,
+                        DJAUTO_HAND_RADIUS,
+                        slide.shootTime,
+                        slide.shootTime + slide.LastFor,
+                        false));
+
                 areaPoolIndex += judgeQueueCount;
                 posePoolIndex += slideArrowsCount;
             }
@@ -947,34 +1018,45 @@ namespace MajdataViewX.Managers
             }
         }
 
-        // ============== Slide shape detection ==============
-        public static string RemoveBracketContent(string s)
+        private void OnNoteLoadFailed(SimaiNote note, Exception e)
         {
-            var sb = new StringBuilder(s.Length);
-            int depth = 0;
-
-            foreach (var c in s)
+            var sb = new StringBuilder();
+            sb.AppendLine($"[Note Load Failed] Exception: {e.Message}");
+            if (e.InnerException != null)
             {
-                if (c == '[')
-                {
-                    depth++;
-                    continue;
-                }
-
-                if (c == ']')
-                {
-                    if (depth > 0)
-                        depth--;
-                    continue;
-                }
-
-                if (depth == 0)
-                    sb.Append(c);
+                sb.AppendLine($"  ---> Inner Exception: {e.InnerException.Message}");
             }
-
-            return sb.ToString();
+            sb.AppendLine($"  Stack Trace:");
+            sb.AppendLine(e.StackTrace);
+            sb.AppendLine("Note Properties:");
+            try
+            {
+                foreach (var prop in typeof(SimaiNote).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+                {
+                    sb.AppendLine($"  {prop.Name}: {prop.GetValue(note)}");
+                }
+                foreach (var field in typeof(SimaiNote).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+                {
+                    sb.AppendLine($"  {field.Name}: {field.GetValue(note)}");
+                }
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine($"  (Failed to reflect properties: {ex.Message})");
+            }
+            var errorMsg = sb.ToString();
+            Debug.LogError(errorMsg);
+            _wsServer.Error(errorMsg);
         }
 
+
+
+
+
+
+
+
+        // ============== Slide shape detection ==============
         private static IList<SlideMetadata> GetSlidesFromRawContent(ReadOnlySpan<char> rawContent,
             out int startPos, out int endPos)
         {

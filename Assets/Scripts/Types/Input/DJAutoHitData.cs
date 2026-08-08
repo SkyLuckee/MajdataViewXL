@@ -1,4 +1,4 @@
-﻿using Unity.Mathematics;
+using Unity.Mathematics;
 
 namespace MajdataViewX.Types.Input
 {
@@ -16,26 +16,23 @@ namespace MajdataViewX.Types.Input
 
         public readonly float StartTime;
         public readonly float EndTime;
-        public readonly bool CanBeCombined;
         public readonly bool CanSkipBySwiped;
 
-        public DJAutoHitData(float2 pos, float radius, float startTime, float endTime, bool canBeCombined, bool canSkipBySwiped)
+        public DJAutoHitData(float2 pos, float radius, float startTime, float endTime, bool canSkipBySwiped)
         {
             this = default;
             Pos = pos;
             Radius = radius;
             StartTime = startTime;
             EndTime = endTime;
-            CanBeCombined = canBeCombined;
             CanSkipBySwiped = canSkipBySwiped;
         }
-        public DJAutoHitData(int buttonPos, float startTime, float endTime, bool canBeCombined, bool canSkipBySwiped)
+        public DJAutoHitData(int buttonPos, float startTime, float endTime, bool canSkipBySwiped)
         {
             this = default;
             ButtonPos = buttonPos;
             StartTime = startTime;
             EndTime = endTime;
-            CanBeCombined = canBeCombined;
             CanSkipBySwiped = canSkipBySwiped;
         }
     }

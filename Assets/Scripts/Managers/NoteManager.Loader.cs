@@ -70,6 +70,7 @@ namespace MajdataViewX.Managers
             touches.Clear();
             touchHolds.Clear();
             hits.Clear();
+            _djAutoTouchHitsThisTiming.Clear();
             swipes.Clear();
             touchGroupTotalCounts.Clear();
             touchGroupJudgedCounts.Clear();
@@ -228,14 +229,6 @@ namespace MajdataViewX.Managers
 
                 slides[i] = slide;
             }
-        }
-
-
-        public void PreprocessHitsAndSwipes()
-        {
-            if (NoteHelper.AutoPlayMode is not (AutoPlayMode.DJAutoButton or AutoPlayMode.DJAutoSensor)) return;
-
-
         }
 
 
@@ -405,6 +398,9 @@ namespace MajdataViewX.Managers
             {
                 ProcessTouchHoldGroups(touchHoldStartIdx, thCount);
             }
+
+            // djauto: 本 timing 的 touch hit 双圆预合并后写入 hits
+            CombineTouchHitsThisTiming();
         }
 
         private struct TouchGroupBuild
@@ -641,7 +637,6 @@ namespace MajdataViewX.Managers
                             (int)tap.Key,
                             tap.Time,
                             tap.Time + DJAUTO_TAP_RELEASE_TIME_SEC,
-                            false,
                             false));
                         break;
                     case AutoPlayMode.DJAutoSensor:
@@ -650,7 +645,6 @@ namespace MajdataViewX.Managers
                             DJAUTO_HAND_RADIUS,
                             tap.Time,
                             tap.Time + DJAUTO_TAP_RELEASE_TIME_SEC,
-                            false,
                             false));
                         break;
                 }
@@ -696,7 +690,6 @@ namespace MajdataViewX.Managers
                             (int)hold.Key,
                             hold.time,
                             hold.time + hold.LastFor,
-                            false,
                             false));
                         break;
                     case AutoPlayMode.DJAutoSensor:
@@ -705,7 +698,6 @@ namespace MajdataViewX.Managers
                             DJAUTO_HAND_RADIUS,
                             hold.time,
                             hold.time + hold.LastFor,
-                            false,
                             false));
                         break;
                 }
@@ -750,12 +742,11 @@ namespace MajdataViewX.Managers
 
             if (!note.IsMine &&
                 NoteHelper.AutoPlayMode is AutoPlayMode.DJAutoButton or AutoPlayMode.DJAutoSensor)
-                hits.Add(new DJAutoHitData(
+                _djAutoTouchHitsThisTiming.Add(new DJAutoHitData(
                     MajPos.GetSensorWorldPos(touch.sensor),
                     DJAUTO_HAND_RADIUS,
                     touch.time,
                     touch.time + DJAUTO_TOUCH_RELEASE_TIME_SEC,
-                            true,
                     false));
         }
 
@@ -793,12 +784,11 @@ namespace MajdataViewX.Managers
 
             if (!note.IsMine &&
                 NoteHelper.AutoPlayMode is AutoPlayMode.DJAutoButton or AutoPlayMode.DJAutoSensor)
-                hits.Add(new DJAutoHitData(
+                _djAutoTouchHitsThisTiming.Add(new DJAutoHitData(
                     MajPos.GetSensorWorldPos(th.sensor),
                     DJAUTO_HAND_RADIUS,
                     th.time,
                     th.time + th.LastFor,
-                            true,
                     false));
         }
 

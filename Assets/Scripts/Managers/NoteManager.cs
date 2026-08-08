@@ -369,6 +369,7 @@ namespace MajdataViewX.Managers
             if (touchHolds.IsCreated) touchHolds.Dispose();
             if (swipes.IsCreated) swipes.Dispose();
             if (hits.IsCreated) hits.Dispose();
+            if (_djAutoTouchHitsThisTiming.IsCreated) _djAutoTouchHitsThisTiming.Dispose();
 
             if (touchGroupTotalCounts.IsCreated) touchGroupTotalCounts.Dispose();
             if (touchGroupJudgedCounts.IsCreated) touchGroupJudgedCounts.Dispose();
@@ -386,6 +387,7 @@ namespace MajdataViewX.Managers
             touches.Clear();
             touchHolds.Clear();
             hits.Clear();
+            _djAutoTouchHitsThisTiming.Clear();
             swipes.Clear();
 
             touchGroupTotalCounts.Clear();

@@ -139,8 +139,9 @@ namespace MajdataViewX.Notes.NoteDatas
             }
 
             // Each Tap Line优先级高于break低于mine
-            if (IsEach && !IsMine)
-                LineSprite = NoteSp.LINE_EACH;
+            //if (IsEach && !IsMine)
+            //    LineSprite = NoteSp.LINE_EACH;
+            // 高个蛋。。。并非如此
         }
 
         public readonly bool IsFoldable(TapData other) =>

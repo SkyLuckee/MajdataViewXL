@@ -50,6 +50,11 @@ namespace MajdataViewX.Managers
         RenderGroup<NotesRenderData> _notesGroup;
         RenderGroup<MaskRenderData> _thBorderGroup;
         RenderGroup<SimpleRenderData> _touchGroup;
+        RenderGroup<HitRenderData> _hitSwipeGroup;
+        bool _isHitSwipeGroupLockedThisFrame;
+
+        Material _matHit;
+        Mesh _hitMesh;
 
         GraphicsBuffer _noteUvsBuffer;
         Material _matLine;
@@ -77,6 +82,8 @@ namespace MajdataViewX.Managers
             _matSimple = new Material(Shader.Find("Custom/NoteSimple"));
             _matNotes = new Material(Shader.Find("Custom/NoteRich"));
             _matMask = new Material(Shader.Find("Custom/NoteMask"));
+            _matHit = new Material(Shader.Find("Custom/Hit"));
+            _hitMesh = MeshGenerator.CreateCircleMesh(8, 1f, true);
 
             CreateRenderGroups(1);
 
@@ -117,6 +124,7 @@ namespace MajdataViewX.Managers
             _notesGroup = new RenderGroup<NotesRenderData>(_matNotes, _quadMesh, 3, capacity);
             _thBorderGroup = new RenderGroup<MaskRenderData>(_matMask, _quadMesh, 4, capacity);
             _touchGroup = new RenderGroup<SimpleRenderData>(_matSimple, _quadMesh, 5, capacity);
+            _hitSwipeGroup = new RenderGroup<HitRenderData>(_matHit, _hitMesh, 6, capacity);
         }
 
         private void DisposeRenderGroups()
@@ -127,6 +135,7 @@ namespace MajdataViewX.Managers
             _notesGroup?.Dispose();
             _thBorderGroup?.Dispose();
             _touchGroup?.Dispose();
+            _hitSwipeGroup?.Dispose();
         }
 
         private void ConfigureRenderCapacity(SimaiChart chart)
@@ -156,12 +165,21 @@ namespace MajdataViewX.Managers
         void Update()
         {
             _prevChain.Complete();
-            if (!_timeProvider.IsRecord)
+            // hitSwipeGroup 必须在 BeginHandler 之前锁定并设好 hitRender/HitWriteCountPtr：
+            // 用户输入（BeginHandler 内）与 HitSwipeUpdateJob 都直接写这两个指针。
+            _isHitSwipeGroupLockedThisFrame = MajBurst.InputData.ShowHand;
+            if (_isHitSwipeGroupLockedThisFrame)
             {
-                // 防止帧率对“下一帧应用”的机制产生过大影响
-                // Record模式下在TimeProvider中设定
-                InputManager.DJAUTO_AUTOPLAY_START_SEC_SS.Data = -Time.unscaledDeltaTime;
+                _hitSwipeGroup.AdvanceWrite();
+                var hitRenderArr = _hitSwipeGroup.LockForWrite();
+                _hitSwipeGroup.ResetCount();
+                unsafe
+                {
+                    MajBurst.InputData.hitRender = (HitRenderData*)hitRenderArr.GetUnsafePtr();
+                    MajBurst.InputData.HitWriteCountPtr = _hitSwipeGroup.WriteCountPtr;
+                }
             }
+
             _inputManager.BeginHandler(); // 这里牵扯到用户输入，需要一直调用
 
             if (taps.Length + eachLines.Length + holds.Length + slides.Length + touches.Length + touchHolds.Length == 0) return;
@@ -212,6 +230,17 @@ namespace MajdataViewX.Managers
                 }
 
                 JobHandle h = default;
+
+                // DJAuto 输入先于判定：HitSwipeUpdateJob 把本帧活跃的 hits/swipes 转成 ActiveDown + 双手圆渲染，
+                // 随后的 note 判定 Job 依赖它读取边沿。wifi 双手偏移/位移精算待后续完善。
+                if (hits.Length > 0 || swipes.Length > 0)
+                {
+                    h = new HitSwipeUpdateJob
+                    {
+                        hits = hits.AsArray(),
+                        swipes = swipes.AsArray(),
+                    }.Schedule(h);
+                }
 
                 // DJAuto持续输入必须先续占下一帧的手，Tap/Touch 只能使用剩余额度，因此hold/slide类note先update
                 if (holds.Length > 0)
@@ -352,6 +381,13 @@ namespace MajdataViewX.Managers
             }
 
             _inputManager.EndHandler();
+            if (_isHitSwipeGroupLockedThisFrame)
+            {
+                _hitSwipeGroup.UnlockWrite(false);
+                _hitSwipeGroup.Render();
+                _hitSwipeGroup.Swap();
+                _isHitSwipeGroupLockedThisFrame = false;
+            }
         }
 
         void OnDestroy()

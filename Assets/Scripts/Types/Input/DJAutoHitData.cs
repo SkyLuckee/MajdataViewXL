@@ -23,6 +23,7 @@ namespace MajdataViewX.Types.Input
             this = default;
             Pos = pos;
             Radius = radius;
+            ButtonPos = -1; // 世界坐标 hit：用 -1 标记，与外键 0~7 区分（this=default 会置 0，与 A1 冲突）
             StartTime = startTime;
             EndTime = endTime;
             CanSkipBySwiped = canSkipBySwiped;

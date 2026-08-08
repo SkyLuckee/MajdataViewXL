@@ -1,10 +1,14 @@
 using MajdataViewX.Base;
 using MajdataViewX.Notes;
+using MajdataViewX.Notes.SlideUtils;
 using MajdataViewX.Types.Enums;
 using MajdataViewX.Types.Input;
+using MajdataViewX.Utils.Extensions;
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Jobs;
 using Unity.Mathematics;
+using static MajdataViewX.Base.MajBurst;
 
 namespace MajdataViewX.Managers
 {
@@ -13,9 +17,29 @@ namespace MajdataViewX.Managers
         // 同一 timing 内收集到的 touch 类 hit；LoadTiming 末尾做双圆预合并后写入 hits。
         private NativeList<DJAutoHitData> _djAutoTouchHitsThisTiming = new(64, Allocator.Persistent);
 
+        public const float DJAUTO_TAP_RELEASE_TIME_SEC = 0.022f;
+        public const float DJAUTO_HOLD_RELEASE_TIME_SEC = 0.022f;
+        public const float DJAUTO_TOUCH_RELEASE_TIME_SEC = 0.022f;
+        public const float DJAUTO_TOUCHHOLD_RELEASE_TIME_SEC = 0.022f;
+
+        // Tap/Hold/Slide默认尺寸
+        public const float DJAUTO_HAND_RADIUS = 0.45f;
+        // Wifi默认尺寸
+        public const float DJAUTO_WIFI_RADIUS = 1.00f;
+        // 所有 DJAuto 手势复用时允许扩大的最大半径。
+        public const float DJAUTO_HAND_MAX_RADIUS = 1.80f;
+
         /// <summary>长 touchhold 重算手位的间隔阈值：相邻 endtime gap >= 此值则断开新段、重新算圆。</summary>
         private const float TOUCH_HIT_RESIZE_HAND_THRESHOLD = 100f * MajCtx.FRAME_LENGTH_SEC;
         private const float TOUCH_HIT_SHORT_SPLIT_THRESHOLD = 5f * MajCtx.FRAME_LENGTH_SEC + (float)MajGeo.Epsilon;
+
+        /// <summary>双圆枚举的 3 点最小覆盖圆候选仅在 n ≤ 此值时启用。
+        /// 3 点候选使双圆预合并从 O(n^5) 升到 O(n^7)，n=33 全 sensor 时会卡 ~3s，故大 n 降级为 1/2 点候选。</summary>
+        private const int TWO_CIRCLE_3POINT_CANDIDATE_MAX_N = 16;
+
+        // DJAuto打星星的放手时机（判定后）
+        public const float DJAUTO_SLIDE_RELEASE_DELAY_SEC = 6 * MajCtx.FRAME_LENGTH_SEC;
+
 
         /// <summary>
         /// 本 timing 的 touch hit 双圆预合并：双手只有两只，用最多两个覆盖圆覆盖本 timing 尽量多的 touch 落点。
@@ -113,10 +137,11 @@ namespace MajdataViewX.Managers
             for (int i = 0; i < n; i++)
                 for (int j = i + 1; j < n; j++)
                     ConsiderFirst(src, handRadius, maxRadius, MinEnclosing2(src[i].Pos, src[j].Pos), ref best);
-            for (int i = 0; i < n; i++)
-                for (int j = i + 1; j < n; j++)
-                    for (int k = j + 1; k < n; k++)
-                        ConsiderFirst(src, handRadius, maxRadius, MinEnclosing3(src[i].Pos, src[j].Pos, src[k].Pos), ref best);
+            if (n <= TWO_CIRCLE_3POINT_CANDIDATE_MAX_N)
+                for (int i = 0; i < n; i++)
+                    for (int j = i + 1; j < n; j++)
+                        for (int k = j + 1; k < n; k++)
+                            ConsiderFirst(src, handRadius, maxRadius, MinEnclosing3(src[i].Pos, src[j].Pos, src[k].Pos), ref best);
 
             return best;
         }
@@ -213,10 +238,11 @@ namespace MajdataViewX.Managers
             for (int i = 0; i < n; i++)
                 for (int j = i + 1; j < n; j++)
                     ConsiderSingle(pts, handRadius, maxRadius, MinEnclosing2(pts[i], pts[j]), ref bestC, ref bestR, ref bestCov);
-            for (int i = 0; i < n; i++)
-                for (int j = i + 1; j < n; j++)
-                    for (int k = j + 1; k < n; k++)
-                        ConsiderSingle(pts, handRadius, maxRadius, MinEnclosing3(pts[i], pts[j], pts[k]), ref bestC, ref bestR, ref bestCov);
+            if (n <= TWO_CIRCLE_3POINT_CANDIDATE_MAX_N)
+                for (int i = 0; i < n; i++)
+                    for (int j = i + 1; j < n; j++)
+                        for (int k = j + 1; k < n; k++)
+                            ConsiderSingle(pts, handRadius, maxRadius, MinEnclosing3(pts[i], pts[j], pts[k]), ref bestC, ref bestR, ref bestCov);
 
             return new SingleBest { C = bestC, R = bestR, Cov = bestCov };
         }
@@ -310,5 +336,94 @@ namespace MajdataViewX.Managers
 
         [BurstCompile]
         private struct Circle { public float2 C; public float R; }
+
+        /// <summary>
+        /// DJAuto 双手自动演奏：把本帧活跃的 hits/swipes 通过 InputData 的修改函数转成 ActiveDown + 手圆渲染。
+        /// 外键 hit(ButtonPos&gt;=0) 走 HandleButtonInput（写 buttonStates，OnLateUpdate 渲染按键）；
+        /// 世界坐标 hit/swipe 走 HandleWorldPosInput（命中 sensor + 渲染手圆），swipe 位置由 Arrows 弧长插值得出。
+        /// </summary>
+        [BurstCompile]
+        private unsafe struct HitSwipeUpdateJob : IJob
+        {
+            public NativeArray<DJAutoHitData> hits;
+            public NativeArray<DJAutoSwipeData> swipes;
+
+            public void Execute()
+            {
+                var time = TimeData.NoteTime;
+
+                for (int i = 0; i < hits.Length; i++)
+                {
+                    ref readonly var hit = ref hits.ElementRef(i);
+                    if (time < hit.StartTime || time > hit.EndTime) continue;
+
+                    if (hit.ButtonPos >= 0)
+                        InputData.HandleButtonInput((SensorType)hit.ButtonPos, true);
+                    else
+                        InputData.HandleWorldPosInput(hit.Pos, hit.Radius);
+                }
+
+                for (int i = 0; i < swipes.Length; i++)
+                {
+                    ref readonly var swipe = ref swipes.ElementRef(i);
+                    if (time < swipe.StartTime || time > swipe.ReleaseTime || time > swipe.EndTime) continue;
+                    if (swipe.IsWifi)
+                        HandleWifiSwipe(swipe, time);
+                    else
+                        HandleSlideSwipe(swipe, time);
+                }
+            }
+
+            /// <summary>
+            /// 沿 swipe.Arrows 做弧长参数化插值，镜像 SlideUpdateJob 的非 wifi 星星位置算法。
+            /// wifi 时此为基础位置（C 支），HandleWifiSwipe 再绕起点 ±22.5° 派生双手 L/R。
+            /// </summary>
+            private static float2 ComputeSwipePos(DJAutoSwipeData swipe, float time)
+            {
+                var arrows = swipe.Arrows;
+                int count = swipe.ArrowCount;
+                if (count <= 1 || arrows == null) return float2.zero;
+
+                var duration = swipe.EndTime - swipe.StartTime;
+                var progress = duration > 0f ? math.saturate((time - swipe.StartTime) / duration) : 0f;
+
+                int idxLast = count - 1;
+                var distance = progress * arrows[idxLast].L;
+                int processIdx = 1;
+                while (processIdx < idxLast && arrows[processIdx].L < distance) processIdx++;
+                var p0 = arrows[processIdx - 1];
+                var p1 = arrows[processIdx];
+                var t = math.unlerp(p0.L, p1.L, distance);
+                return new float2(math.lerp(p0.X, p1.X, t), math.lerp(p0.Y, p1.Y, t));
+            }
+
+            private static void HandleSlideSwipe(DJAutoSwipeData swipe, float time)
+            {
+                var pos = ComputeSwipePos(swipe, time);
+                InputData.HandleWorldPosInput(pos, swipe.Radius);
+            }
+
+            /// <summary>
+            /// wifi 双手：双手绕起点 ±11.25° 旋转（L/R 支与 C 支的中间）。
+            /// </summary>
+            private static void HandleWifiSwipe(DJAutoSwipeData swipe, float time)
+            {
+                // 基础位置（C 支）
+                var posC = ComputeSwipePos(swipe, time);
+                // 双手：基础位置相对起点的偏移绕起点旋转 ±11.25°
+                var arrows = swipe.Arrows;
+                var startPos = new float2(arrows[0].X, arrows[0].Y);
+                var offset = posC - startPos;
+                var rad = math.radians(11.25f);
+                var cos = math.cos(rad);
+                var sin = math.sin(rad);
+                // 顺时针 11.25°（L 支方向）
+                var posL = startPos + new float2(offset.x * cos + offset.y * sin, -offset.x * sin + offset.y * cos);
+                // 逆时针 11.25°（R 支方向）
+                var posR = startPos + new float2(offset.x * cos - offset.y * sin, offset.x * sin + offset.y * cos);
+                InputData.HandleWorldPosInput(posL, swipe.Radius);
+                InputData.HandleWorldPosInput(posR, swipe.Radius);
+            }
+        }
     }
 }

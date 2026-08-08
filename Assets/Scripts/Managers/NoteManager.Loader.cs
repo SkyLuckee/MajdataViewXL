@@ -24,16 +24,6 @@ namespace MajdataViewX.Managers
 {
     public partial class NoteManager
     {
-        public const float DJAUTO_TAP_RELEASE_TIME_SEC = 0.022f;
-        public const float DJAUTO_TOUCH_RELEASE_TIME_SEC = 0.022f;
-
-        // Tap/Hold/Slide默认尺寸
-        public const float DJAUTO_HAND_RADIUS = 0.45f;
-        // Wifi默认尺寸
-        public const float DJAUTO_WIFI_RADIUS = 1.00f;
-        // 所有 DJAuto 手势复用时允许扩大的最大半径。
-        public const float DJAUTO_HAND_MAX_RADIUS = 1.80f;
-
         public float NoteSpeed = 7f;
         public float TouchSpeed = 7.5f;
         public bool LegacySlideLayer = false;
@@ -689,7 +679,7 @@ namespace MajdataViewX.Managers
                         hits.Add(new DJAutoHitData(
                             (int)hold.Key,
                             hold.time,
-                            hold.time + hold.LastFor,
+                            hold.time + hold.LastFor + DJAUTO_HOLD_RELEASE_TIME_SEC,
                             false));
                         break;
                     case AutoPlayMode.DJAutoSensor:
@@ -697,7 +687,7 @@ namespace MajdataViewX.Managers
                             MajPos.GetSensorWorldPos(hold.Key),
                             DJAUTO_HAND_RADIUS,
                             hold.time,
-                            hold.time + hold.LastFor,
+                            hold.time + hold.LastFor + DJAUTO_HOLD_RELEASE_TIME_SEC,
                             false));
                         break;
                 }
@@ -788,7 +778,7 @@ namespace MajdataViewX.Managers
                     MajPos.GetSensorWorldPos(th.sensor),
                     DJAUTO_HAND_RADIUS,
                     th.time,
-                    th.time + th.LastFor,
+                    th.time + th.LastFor + DJAUTO_TOUCHHOLD_RELEASE_TIME_SEC,
                     false));
         }
 
@@ -832,6 +822,26 @@ namespace MajdataViewX.Managers
                 }
                 starTap.Init();
                 taps.Add(starTap);
+
+                if (!note.IsMine)
+                    switch (NoteHelper.AutoPlayMode)
+                    {
+                        case AutoPlayMode.DJAutoButton:
+                            hits.Add(new DJAutoHitData(
+                                (int)starTap.Key,
+                                starTap.Time,
+                                starTap.Time + DJAUTO_TAP_RELEASE_TIME_SEC,
+                                false));
+                            break;
+                        case AutoPlayMode.DJAutoSensor:
+                            hits.Add(new DJAutoHitData(
+                                MajPos.GetSensorWorldPos(starTap.Key),
+                                DJAUTO_HAND_RADIUS,
+                                starTap.Time,
+                                starTap.Time + DJAUTO_TAP_RELEASE_TIME_SEC,
+                                false));
+                            break;
+                    }
             }
 
 
@@ -896,6 +906,7 @@ namespace MajdataViewX.Managers
                         slide.slideArrowsCount,
                         DJAUTO_WIFI_RADIUS,
                         slide.shootTime,
+                        slide.judgeTiming + DJAUTO_SLIDE_RELEASE_DELAY_SEC,
                         slide.shootTime + slide.LastFor,
                         true));
 
@@ -977,6 +988,7 @@ namespace MajdataViewX.Managers
                         slide.slideArrowsCount,
                         DJAUTO_HAND_RADIUS,
                         slide.shootTime,
+                        slide.judgeTiming + DJAUTO_SLIDE_RELEASE_DELAY_SEC,
                         slide.shootTime + slide.LastFor,
                         false));
 

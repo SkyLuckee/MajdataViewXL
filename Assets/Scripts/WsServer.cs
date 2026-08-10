@@ -32,8 +32,6 @@ namespace MajdataViewX
         // 这里是游戏及游戏外部的初始化
         void Start()
         {
-            SceneManager.LoadScene(1);
-
             QualitySettings.vSyncCount = 1;
 
             webSocket = new WebSocketServer("ws://127.0.0.1:8083");

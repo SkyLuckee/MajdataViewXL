@@ -23,7 +23,6 @@ namespace MajdataViewX.Notes.NoteDatas
         public bool usingSV;
 
         public bool isFolded;
-        public bool isSlideGuide;
 
         public bool isAppeared;
         public bool isEnd;

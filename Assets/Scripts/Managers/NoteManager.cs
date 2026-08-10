@@ -37,6 +37,10 @@ namespace MajdataViewX.Managers
 
         NativeList<DJAutoHitData> hits = new(1024, Allocator.Persistent);
         NativeList<DJAutoSwipeData> swipes = new(1024, Allocator.Persistent);
+        NativeArray<DJAutoHand> _djAutoHands = new(2, Allocator.Persistent);
+
+        [SerializeField]
+        AnimationCurve DJAutoMoveCurve;
 
         NativeList<int> touchGroupTotalCounts = new(256, Allocator.Persistent);
         NativeList<int> touchGroupJudgedCounts = new(256, Allocator.Persistent);
@@ -110,6 +114,17 @@ namespace MajdataViewX.Managers
             SetupMaterial(_matSimple);
             SetupMaterial(_matNotes);
             SetupMaterial(_matMask);
+
+            _djAutoMoveCurve = new(DJAUTO_CURVE_RESOLUTION, Allocator.Persistent);
+            for (var i = 0; i < DJAUTO_CURVE_RESOLUTION; i++)
+            {
+                var t = i / (float)(DJAUTO_CURVE_RESOLUTION - 1);
+                _djAutoMoveCurve[i] = DJAutoMoveCurve.Evaluate(t);
+            }
+
+            // 字段初始化器只给全零(DJAutoHand)，首播前显式重置为正确的空闲初始态(CurIdx=-1)，
+            // 否则全零的 CurIdx=0 会让两手都误跟踪 hits[0]。
+            ResetDJAutoHands();
         }
 
         private void CreateRenderGroups(int capacityMultiplier)
@@ -231,12 +246,12 @@ namespace MajdataViewX.Managers
 
                 JobHandle h = default;
 
-                // DJAuto 输入先于判定：HitSwipeUpdateJob 把本帧活跃的 hits/swipes 转成 ActiveDown + 双手圆渲染，
-                // 随后的 note 判定 Job 依赖它读取边沿。wifi 双手偏移/位移精算待后续完善。
                 if (hits.Length > 0 || swipes.Length > 0)
                 {
                     h = new HitSwipeUpdateJob
                     {
+                        _djAutoMoveCurve = _djAutoMoveCurve,
+                        hands = _djAutoHands,
                         hits = hits.AsArray(),
                         swipes = swipes.AsArray(),
                     }.Schedule(h);
@@ -405,7 +420,9 @@ namespace MajdataViewX.Managers
             if (touchHolds.IsCreated) touchHolds.Dispose();
             if (swipes.IsCreated) swipes.Dispose();
             if (hits.IsCreated) hits.Dispose();
+            if (_djAutoHands.IsCreated) _djAutoHands.Dispose();
             if (_djAutoTouchHitsThisTiming.IsCreated) _djAutoTouchHitsThisTiming.Dispose();
+            if (_djAutoMoveCurve.IsCreated) _djAutoMoveCurve.Dispose();
 
             if (touchGroupTotalCounts.IsCreated) touchGroupTotalCounts.Dispose();
             if (touchGroupJudgedCounts.IsCreated) touchGroupJudgedCounts.Dispose();
@@ -425,6 +442,7 @@ namespace MajdataViewX.Managers
             hits.Clear();
             _djAutoTouchHitsThisTiming.Clear();
             swipes.Clear();
+            ResetDJAutoHands();
 
             touchGroupTotalCounts.Clear();
             touchGroupJudgedCounts.Clear();

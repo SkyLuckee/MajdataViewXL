@@ -28,7 +28,6 @@ namespace MajdataViewX.Notes.NoteDatas
         public bool UsingSV { get; init; }
 
         public bool IsFolded { get; set; }
-        public bool IsSlideGuide { get; set; }
 
         // outs
         public float2 Pos { get; set; }

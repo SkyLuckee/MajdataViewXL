@@ -1594,6 +1594,39 @@ MonoBehaviour:
   SmoothSlideAnime: 1
   MineAutoSlide: 1
   Ignore: 0
+  DJAutoMoveCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: -0.0023980816
+      value: -0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.28277496
+      value: 0.6242062
+      inSlope: 0.9987882
+      outSlope: 0.9987882
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1.001199
+      value: 1.002381
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
 --- !u!1 &350294510
 GameObject:
   m_ObjectHideFlags: 0

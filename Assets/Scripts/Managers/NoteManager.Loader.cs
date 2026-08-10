@@ -96,9 +96,6 @@ namespace MajdataViewX.Managers
 
 
 
-            MarkSlideGuideNotes();
-
-
 
 
 
@@ -154,71 +151,10 @@ namespace MajdataViewX.Managers
             loadedSlideAreaArrays.Clear();
             loadedSlidePoseArrays.Clear();
 
+            // hit/swipe 已全部 emit 且 Arrows 已回填：标记可被 swipe 顺带覆盖的 hit（设 BoundSwipe + ExpandedRadius）
+            BindSkippableHitsBySwipe();
+
             MajBurst.MultTouchHandler.Load(loadedTouches);
-        }
-
-        private static int GetSlideGuideTimeKey(float timing) =>
-            (int)math.round(timing * 1000f);
-        private void MarkSlideGuideNotes()
-        {
-            var tapLookup = new Dictionary<(int Time, SensorType Sensor), List<int>>();
-            var touchLookup = new Dictionary<(int Time, SensorType Sensor), List<int>>();
-
-            for (int i = 0; i < taps.Length; i++)
-            {
-                var tap = taps[i];
-                if (tap.IsMine) continue;
-
-                var key = (GetSlideGuideTimeKey(tap.Time), tap.Key);
-                if (!tapLookup.TryGetValue(key, out var indices))
-                    tapLookup.Add(key, indices = new List<int>());
-                indices.Add(i);
-            }
-
-            for (int i = 0; i < touches.Length; i++)
-            {
-                var touch = touches[i];
-                if (touch.isMine) continue;
-
-                var key = (GetSlideGuideTimeKey(touch.time), touch.sensor);
-                if (!touchLookup.TryGetValue(key, out var indices))
-                    touchLookup.Add(key, indices = new List<int>());
-                indices.Add(i);
-            }
-
-            for (int i = 0; i < slides.Length; i++)
-            {
-                var slide = slides[i];
-                if (slide.isMine) continue;
-
-                var sensor = (SensorType)(slide.startPos - 1);
-                var key = (GetSlideGuideTimeKey(slide.shootTime), sensor);
-
-                if (tapLookup.TryGetValue(key, out var tapIndices))
-                {
-                    slide.hasSlideGuide = true;
-                    slide.hasTapGuide = true;
-                    foreach (var tapIndex in tapIndices)
-                    {
-                        var tap = taps[tapIndex];
-                        tap.IsSlideGuide = true;
-                        taps[tapIndex] = tap;
-                    }
-                }
-
-                if (touchLookup.TryGetValue(key, out var touchIndices))
-                {
-                    slide.hasSlideGuide = true;
-                    foreach (var touchIndex in touchIndices)
-                    {
-                        var touch = touches[touchIndex];
-                        touch.isSlideGuide = true;
-                        touches[touchIndex] = touch;
-                    }
-                }
-
-                slides[i] = slide;
-            }
         }
 
 
@@ -624,18 +560,19 @@ namespace MajdataViewX.Managers
                 {
                     case AutoPlayMode.DJAutoButton:
                         hits.Add(new DJAutoHitData(
-                            (int)tap.Key,
-                            tap.Time,
-                            tap.Time + DJAUTO_TAP_RELEASE_TIME_SEC,
-                            false));
-                        break;
-                    case AutoPlayMode.DJAutoSensor:
-                        hits.Add(new DJAutoHitData(
-                            MajPos.GetSensorWorldPos(tap.Key),
+                            MajPos.RingPos(DJAUTO_BTN_DEFAULT_RADIUS, (int)tap.Key + 1, false),
                             DJAUTO_HAND_RADIUS,
                             tap.Time,
                             tap.Time + DJAUTO_TAP_RELEASE_TIME_SEC,
-                            false));
+                            -2));
+                        break;
+                    case AutoPlayMode.DJAutoSensor:
+                        hits.Add(new DJAutoHitData(
+                            MajPos.GetSensorJudgePos(tap.Key),
+                            DJAUTO_HAND_RADIUS,
+                            tap.Time,
+                            tap.Time + DJAUTO_TAP_RELEASE_TIME_SEC,
+                            -2));
                         break;
                 }
         }
@@ -677,18 +614,19 @@ namespace MajdataViewX.Managers
                 {
                     case AutoPlayMode.DJAutoButton:
                         hits.Add(new DJAutoHitData(
-                            (int)hold.Key,
-                            hold.time,
-                            hold.time + hold.LastFor + DJAUTO_HOLD_RELEASE_TIME_SEC,
-                            false));
-                        break;
-                    case AutoPlayMode.DJAutoSensor:
-                        hits.Add(new DJAutoHitData(
-                            MajPos.GetSensorWorldPos(hold.Key),
+                            MajPos.RingPos(DJAUTO_BTN_DEFAULT_RADIUS, (int)hold.Key + 1, false),
                             DJAUTO_HAND_RADIUS,
                             hold.time,
                             hold.time + hold.LastFor + DJAUTO_HOLD_RELEASE_TIME_SEC,
-                            false));
+                            -2));
+                        break;
+                    case AutoPlayMode.DJAutoSensor:
+                        hits.Add(new DJAutoHitData(
+                            MajPos.GetSensorJudgePos(hold.Key),
+                            DJAUTO_HAND_RADIUS,
+                            hold.time,
+                            hold.time + hold.LastFor + DJAUTO_HOLD_RELEASE_TIME_SEC,
+                            -2));
                         break;
                 }
         }
@@ -732,12 +670,11 @@ namespace MajdataViewX.Managers
 
             if (!note.IsMine &&
                 NoteHelper.AutoPlayMode is AutoPlayMode.DJAutoButton or AutoPlayMode.DJAutoSensor)
-                _djAutoTouchHitsThisTiming.Add(new DJAutoHitData(
-                    MajPos.GetSensorWorldPos(touch.sensor),
-                    DJAUTO_HAND_RADIUS,
-                    touch.time,
-                    touch.time + DJAUTO_TOUCH_RELEASE_TIME_SEC,
-                    false));
+                _djAutoTouchHitsThisTiming.Add(new DJAutoNoteRef
+                {
+                    Index = touches.Length - 1,
+                    Type = SimaiNoteType.Touch,
+                });
         }
 
         private void LoadTouchHold(
@@ -774,12 +711,11 @@ namespace MajdataViewX.Managers
 
             if (!note.IsMine &&
                 NoteHelper.AutoPlayMode is AutoPlayMode.DJAutoButton or AutoPlayMode.DJAutoSensor)
-                _djAutoTouchHitsThisTiming.Add(new DJAutoHitData(
-                    MajPos.GetSensorWorldPos(th.sensor),
-                    DJAUTO_HAND_RADIUS,
-                    th.time,
-                    th.time + th.LastFor + DJAUTO_TOUCHHOLD_RELEASE_TIME_SEC,
-                    false));
+                _djAutoTouchHitsThisTiming.Add(new DJAutoNoteRef
+                {
+                    Index = touchHolds.Length - 1,
+                    Type = SimaiNoteType.TouchHold,
+                });
         }
 
         private string LoadSlideChain(
@@ -828,18 +764,19 @@ namespace MajdataViewX.Managers
                     {
                         case AutoPlayMode.DJAutoButton:
                             hits.Add(new DJAutoHitData(
-                                (int)starTap.Key,
-                                starTap.Time,
-                                starTap.Time + DJAUTO_TAP_RELEASE_TIME_SEC,
-                                false));
-                            break;
-                        case AutoPlayMode.DJAutoSensor:
-                            hits.Add(new DJAutoHitData(
-                                MajPos.GetSensorWorldPos(starTap.Key),
+                                MajPos.RingPos(DJAUTO_BTN_DEFAULT_RADIUS, (int)starTap.Key + 1, false),
                                 DJAUTO_HAND_RADIUS,
                                 starTap.Time,
                                 starTap.Time + DJAUTO_TAP_RELEASE_TIME_SEC,
-                                false));
+                                -2));
+                            break;
+                        case AutoPlayMode.DJAutoSensor:
+                            hits.Add(new DJAutoHitData(
+                                MajPos.GetSensorJudgePos(starTap.Key),
+                                DJAUTO_HAND_RADIUS,
+                                starTap.Time,
+                                starTap.Time + DJAUTO_TAP_RELEASE_TIME_SEC,
+                                -2));
                             break;
                     }
             }
@@ -901,14 +838,17 @@ namespace MajdataViewX.Managers
                 if (!note.IsMine &&
                     NoteHelper.AutoPlayMode is AutoPlayMode.DJAutoButton or AutoPlayMode.DJAutoSensor &&
                     sameSlideCount == 1) // slide跟别人一样就不用鸟
-                    swipes.Add(new DJAutoSwipeData(
-                        slide.slideArrowsOffset,
-                        slide.slideArrowsCount,
-                        DJAUTO_WIFI_RADIUS,
-                        slide.shootTime,
-                        slide.judgeTiming + DJAUTO_SLIDE_RELEASE_DELAY_SEC,
-                        slide.shootTime + slide.LastFor,
-                        true));
+                    unsafe
+                    {
+                        swipes.Add(new DJAutoSwipeData(
+                            slide.slideArrowsOffset,
+                            slide.slideArrowsCount,
+                            DJAUTO_WIFI_RADIUS,
+                            slide.shootTime,
+                            slides.GetUnsafeReadOnlyPtr() + slides.Length - 1,
+                            slide.shootTime + slide.LastFor,
+                            true));
+                    }
 
                 areaPoolIndex += judgeQueueCount + judgeQueueLCount + judgeQueueRCount;
                 posePoolIndex += slideArrowsCount;
@@ -983,14 +923,17 @@ namespace MajdataViewX.Managers
                 if (!note.IsMine &&
                     NoteHelper.AutoPlayMode is AutoPlayMode.DJAutoButton or AutoPlayMode.DJAutoSensor &&
                     sameSlideCount == 1) // slide跟别人一样就不用鸟
-                    swipes.Add(new DJAutoSwipeData(
-                        slide.slideArrowsOffset,
-                        slide.slideArrowsCount,
-                        DJAUTO_HAND_RADIUS,
-                        slide.shootTime,
-                        slide.judgeTiming + DJAUTO_SLIDE_RELEASE_DELAY_SEC,
-                        slide.shootTime + slide.LastFor,
-                        false));
+                    unsafe
+                    {
+                        swipes.Add(new DJAutoSwipeData(
+                            slide.slideArrowsOffset,
+                            slide.slideArrowsCount,
+                            DJAUTO_HAND_RADIUS,
+                            slide.shootTime,
+                            slides.GetUnsafeReadOnlyPtr() + slides.Length - 1,
+                            slide.shootTime + slide.LastFor,
+                            false));
+                    }
 
                 areaPoolIndex += judgeQueueCount;
                 posePoolIndex += slideArrowsCount;

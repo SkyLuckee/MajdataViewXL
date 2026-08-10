@@ -2,39 +2,28 @@ using Unity.Mathematics;
 
 namespace MajdataViewX.Types.Input
 {
-    internal readonly struct DJAutoHitData
+    internal struct DJAutoHitData
     {
         /// <summary>
-        /// 世界坐标
+        /// 世界坐标(利用大于4.8半径的位置按下判定为按下外键的特性支持外键打击)
         /// </summary>
         public readonly float2 Pos;
         public readonly float Radius;
-        /// <summary>
-        /// 按键索引，范围0~7对应1~8号键，当被赋值时Pos被忽略
-        /// </summary>
-        public readonly int ButtonPos;
 
         public readonly float StartTime;
         public readonly float EndTime;
-        public readonly bool CanSkipBySwiped;
+        /// <summary>-2=不允许被 swipe 顺带覆盖（tap/hold 恒为 -2）；-1=允许但未找到匹配 swipe；>=0=绑定的 swipe 索引。
+        /// 绑定后该 hit 由 swipe 执行时扩大半径顺带覆盖，FindEarliestTarget 不再独立认领它。</summary>
+        public int BoundSwipe;
 
-        public DJAutoHitData(float2 pos, float radius, float startTime, float endTime, bool canSkipBySwiped)
+        public DJAutoHitData(float2 pos, float radius, float startTime, float endTime, int boundSwipe)
         {
             this = default;
             Pos = pos;
             Radius = radius;
-            ButtonPos = -1; // 世界坐标 hit：用 -1 标记，与外键 0~7 区分（this=default 会置 0，与 A1 冲突）
             StartTime = startTime;
             EndTime = endTime;
-            CanSkipBySwiped = canSkipBySwiped;
-        }
-        public DJAutoHitData(int buttonPos, float startTime, float endTime, bool canSkipBySwiped)
-        {
-            this = default;
-            ButtonPos = buttonPos;
-            StartTime = startTime;
-            EndTime = endTime;
-            CanSkipBySwiped = canSkipBySwiped;
+            BoundSwipe = boundSwipe;
         }
     }
 }

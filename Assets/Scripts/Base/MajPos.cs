@@ -6,6 +6,8 @@ namespace MajdataViewX.Base
 {
     public static class MajPos
     {
+        public const float MAIN_RADIUS = 4.8f;
+
         // 从 muridx 抄的，但是加大了一圈
         public const float A_RADIUS = 1.10f;
         public const float B_RADIUS = 0.85f;
@@ -41,7 +43,7 @@ namespace MajdataViewX.Base
         /// D 区的物理判定圆心与音符显示位置不同。
         /// </summary>
         [BurstCompile]
-        public static float2 GetSensorWorldPos(SensorType sensor)
+        public static float2 GetSensorJudgePos(SensorType sensor)
         {
             int i = (int)sensor;
             if (i >= 17 && i <= 24)
@@ -50,7 +52,7 @@ namespace MajdataViewX.Base
         }
 
         /// <summary>
-        /// 获取按键的世界坐标
+        /// 获取按键的世界坐标，这是 判定圈上原点 的位置
         /// </summary>
         /// <param name="key">按键索引，注意是在0~7之间</param>
         /// <returns></returns>
@@ -58,7 +60,7 @@ namespace MajdataViewX.Base
         public static float2 GetBtnPos(int key)
         {
             if (key >= 0 && key <= 7)
-                return RingPos(4.8f, key + 1, false);
+                return RingPos(MAIN_RADIUS, key + 1, false);
             return float2.zero;
         }
 

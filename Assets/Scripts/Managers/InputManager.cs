@@ -41,7 +41,7 @@ namespace MajdataViewX.Managers
             //get sensor positions
             for (var i = 0; i < SENSOR_COUNT; i++)
             {
-                InputData.SensorWorldPositions[i] = MajPos.GetSensorWorldPos((SensorType)i);
+                InputData.SensorWorldPositions[i] = MajPos.GetSensorJudgePos((SensorType)i);
             }
         }
 
@@ -189,6 +189,15 @@ namespace MajdataViewX.Managers
 
                 if (distSq <= combinedSq)
                     SetSensorOn((SensorType)i);
+            }
+            var r = math.length(pos);
+            if (r > MajPos.MAIN_RADIUS)
+            {
+                // 坐标轴旋转，向上为0度，顺时针为正
+                var theta = math.atan2(pos.x, pos.y);
+                if (theta < 0) theta += math.PI * 2;
+                var key = (int)(theta / (math.PI / 4));
+                SetButtonOn((SensorType)key);
             }
             if (ShowHand)
             {

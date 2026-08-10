@@ -312,8 +312,7 @@ namespace MajdataViewX.Notes.Updaters
                 case AutoPlayMode.DJAutoSensor:
                 case AutoPlayMode.Disable: // disable也要处理mine情况
                     {
-                        // Mine slide 逻辑上是程序自动推进，故不进入 DJAuto 正常流程（否则会占用手）
-                        if (!slide.mineAutoSlide) break;
+                        if (!slide.isMine || !slide.mineAutoSlide) break;
 
                         // 目前判定到哪个区
                         var idx = slide.judgeCurrent;

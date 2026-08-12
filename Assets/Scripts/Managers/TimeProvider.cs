@@ -237,6 +237,8 @@ namespace MajdataViewX.Managers
         public bool IsStart;
         public float NoteTime;
         public readonly float FakeNoteTime => GetPositionAtTime(NoteTime);
+        // 存在减少late的隐秘指令
+        public readonly float DJAutoTime => TimeData.NoteTime + 0.01f;
 
         /// <summary>
         /// 录制模式时恒为FRAME_LENGTH_SEC，因此无法与Time.xxx配合使用！！！

@@ -1,130 +1,175 @@
-using System.Collections.Generic;
 using MajdataViewX.Base;
 using MajdataViewX.Notes;
 using MajdataViewX.Notes.NoteDatas;
 using MajdataViewX.Notes.SlideUtils;
 using MajdataViewX.Types.Enums;
 using MajdataViewX.Types.Input;
+using MajdataViewX.Types.Rendering;
 using MajdataViewX.Utils.Extensions;
 using MajSimai;
+using System.Collections.Generic;
 using System.Threading;
-using MajdataViewX.Types.Rendering;
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Mathematics;
+using UnityEngine;
 using static MajdataViewX.Base.MajBurst;
-using Unity.Collections.LowLevel.Unsafe;
+using static UnityEditor.Rendering.ShadowCascadeGUI;
 
 namespace MajdataViewX.Managers
 {
     public partial class NoteManager
     {
-        // 同一 timing 内收集到的 touch 类引用（指向 touches/touchHolds 的 index），LoadTiming 末尾做双圆预合并后写入 hits。
-        private NativeList<DJAutoNoteRef> _djAutoTouchHitsThisTiming = new(64, Allocator.Persistent);
+        // 同一 timing 内收集到的 touch 类引用（指向 touches/touchHolds 的 index），LoadTiming 末尾做双圆预合并后写入 infos。
+        private NativeList<DJAutoTouchInfo> _djAutoTouchInfosThisTiming = new(64, Allocator.Persistent);
         // touch 组合(sensor 子集掩码) -> 双圆手法的缓存，重复 touch 模式只算一次
         private readonly Dictionary<ulong, TwoCircleBest> _touchComboCache = new();
+
+
+        NativeArray<DJAutoHand> _djAutoHands = new(2, Allocator.Persistent);
+        NativeArray<DJAutoPlayData> _leftHandPlays;
+        NativeArray<DJAutoPlayData> _rightHandPlays;
 
         private const int DJAUTO_CURVE_RESOLUTION = 2048;
         private static NativeArray<float> _djAutoMoveCurve;
 
+        public const int DJAUTO_LOOKAHEAD_COUNT = 8;
+
+        // ===== 放手时机 =====
         public const float DJAUTO_TAP_RELEASE_TIME_SEC = 0.022f;
         public const float DJAUTO_HOLD_RELEASE_TIME_SEC = 0.022f;
         public const float DJAUTO_TOUCH_RELEASE_TIME_SEC = 0.022f;
         public const float DJAUTO_TOUCHHOLD_RELEASE_TIME_SEC = 0.022f;
+        /// <summary>DJAuto打星星的放手时机（判定后）</summary>
+        public const float DJAUTO_SLIDE_RELEASE_DELAY_SEC = 6 * MajCtx.FRAME_LENGTH_SEC;
 
-        /// <summary>Tap/Hold外键默认半径</summary>
+        // ===== 击打参数 =====
+        /// <summary>Tap/Hold外键默认击打半径</summary>
         public const float DJAUTO_BTN_DEFAULT_RADIUS = MajPos.MAIN_RADIUS + DJAUTO_HAND_RADIUS * 2 + 0.5f;
 
         /// <summary>Tap/Hold/Slide默认尺寸</summary>
         public const float DJAUTO_HAND_RADIUS = 0.45f;
         /// <summary>Wifi默认尺寸</summary>
         public const float DJAUTO_WIFI_RADIUS = 1.00f;
-        /// <summary>所有 DJAuto 手最大半径。</summary>
+        /// <summary>所有 DJAuto 手最大半径</summary>
         public const float DJAUTO_HAND_MAX_RADIUS = 1.80f;
-
-        /// <summary>长 touchhold 重算手位的间隔阈值：相邻 endtime gap >= 此值则断开新段、重新算圆。</summary>
-        private const float TOUCH_HIT_RESIZE_HAND_THRESHOLD = 100f * MajCtx.FRAME_LENGTH_SEC;
-        /// <summary>
-        /// 一组touch(hold)中，当存在end time大于start+此值的项时，重算一次手位.
-        /// 后面参考<see cref="TOUCH_HIT_RESIZE_HAND_THRESHOLD"/>
-        /// </summary>
-        private const float TOUCH_HIT_SHORT_SPLIT_THRESHOLD = 5f * MajCtx.FRAME_LENGTH_SEC + (float)MajGeo.Epsilon;
-
-        /// <summary>
-        /// 双圆枚举的 3 点最小覆盖圆候选仅在 n ≤ 此值时启用。
-        /// 3 点候选使双圆预合并从 O(n^5) 升到 O(n^7)，n=33 全 sensor 时会卡 ~3s，故大 n 降级为 1/2 点候选。
-        /// </summary>
-        private const int TWO_CIRCLE_3POINT_CANDIDATE_MAX_N = 16;
-
-        /// <summary>DJAuto打星星的放手时机（判定后）</summary>
-        public const float DJAUTO_SLIDE_RELEASE_DELAY_SEC = 6 * MajCtx.FRAME_LENGTH_SEC;
 
         /// <summary>手提前移动到 hit/swipe 的时间（线性插值窗口）</summary>
         public const float DJAUTO_HAND_PREADVANCE_SEC = 30f * MajCtx.FRAME_LENGTH_SEC;
-        /// <summary>HIT滑动阈值：下一 data 与当前结束间隔 <= 此值, 则不 Off 直接移动</summary>
-        public const float DJAUTO_HAND_CHAIN_SEC = 3f * MajCtx.FRAME_LENGTH_SEC;
-        /// <summary>手位移速度上限（主圆直径 9.6 / 提前量 4*FRAME），超此距离来不及 -> Miss</summary>
-        public const float DJAUTO_HAND_MAX_SPEED = 9.6f / (4f * MajCtx.FRAME_LENGTH_SEC);
+        /// <summary>手位移速度上限，超此距离来不及 -> Miss</summary>
+        public const float DJAUTO_HAND_MAX_SPEED = 9.6f / (7f * MajCtx.FRAME_LENGTH_SEC);
+
+        // ===== CombineTouchThisTiming 覆盖圆计算系数 =====
+        /// <summary>长 touchhold 重算手位的间隔阈值：相邻 endtime gap >= 此值则断开新段、重新算圆。</summary>
+        private const float TOUCH_HIT_RESIZE_HAND_THRESHOLD = 100f * MajCtx.FRAME_LENGTH_SEC;
+        /// <summary>一组touch(hold)中，当存在end time大于start+此值的项时，重算一次手位。之后的重算有所不同</summary>
+        private const float TOUCH_HIT_SHORT_SPLIT_THRESHOLD = 5f * MajCtx.FRAME_LENGTH_SEC + (float)MajGeo.Epsilon;
+        /// <summary>双圆枚举的 3 点最小覆盖圆候选仅在 n ≤ 此值时启用。大 n 降级为 1/2 点候选以保全性能。</summary>
+        private const int TWO_CIRCLE_3POINT_CANDIDATE_MAX_N = 16;
+
+
+
+        // ===== BindPlayPatterns 硬绑定系数(待实测调参) =====
+        // 扫键绑定
+        /// <summary>hit 到 hit 允许预绑定的最大时间差。</summary>
+        public const float DJAUTO_HIT_HIT_CHAIN_SEC = 5f * MajCtx.FRAME_LENGTH_SEC;
+        /// <summary>hit 到 hit 允许预绑定的最大辐角。</summary>
+        public const float DJAUTO_HIT_HIT_CHAIN_ANG = math.PI2 / 8 + (float)MajGeo.EpsilonRad; // 一个键左右
+        // 拍划绑定
         /// <summary>hit 结束到 swipe 开始允许预绑定的最大时间差。</summary>
-        public const float DJAUTO_HIT_SWIPE_CHAIN_SEC = 0.1f;
+        public const float DJAUTO_HIT_SWIPE_CHAIN_SEC = 0.01f;
         /// <summary>hit 位置到 swipe 起点允许预绑定的最大距离。</summary>
-        public const float DJAUTO_HIT_SWIPE_CHAIN_DISTANCE = DJAUTO_HAND_MAX_RADIUS;
+        public const float DJAUTO_HIT_SWIPE_CHAIN_DIST = 0.1f;
+        /// <summary>hit 位置到 swipe 起点需要一定时间，给start time一个延迟。</summary>
+        public const float DJAUTO_HIT_SWIPE_ENTER_DELAY = 0.1f;
+        // 拍划绑定
+        /// <summary>swipe 结束到 swipe 开始允许预绑定的最大时间差。</summary>
+        public const float DJAUTO_SWIPE_SWIPE_CHAIN_SEC = 0.078f;
+        /// <summary>swipe 结束到 swipe 起点允许预绑定的最大距离。</summary>
+        public const float DJAUTO_SWIPE_SWIPE_CHAIN_DIST = 0.05f;
 
-        // 存在减少late的隐秘指令
-        private static float CurTime => TimeData.NoteTime + 0.01f;
+        // ===== FindNext 权重系数(待实测调参) =====
+        /// <summary>位置代价:手到目标入口距离² × 此系数。</summary>
+        private const float DJAUTO_COST_POS = 1f;
+        /// <summary>惯性代价:(play.StartTime - hand.ServeEnd) × 此系数，刚释放的手续接更优。</summary>
+        private const float DJAUTO_COST_INERTIA = 8f;
+        /// <summary>绕角惩罚:累积 |SweptAngle| × 此系数。</summary>
+        private const float DJAUTO_COST_SWEEP = 1.5f;
+        /// <summary>时间可达硬约束的迟到容差:允许手在 StartTime 之后这么多秒内仍认领。</summary>
+        private const float DJAUTO_COST_REACH_TOL = 0.05f;
 
-        /// <summary>重置双手到初始位（半径 2.4 = 主圆一半，平行 x 轴直径两端），状态 Off，CurIdx=-1 无目标，FreeTime=-inf 确保初始可达。</summary>
-        private void ResetDJAutoHands()
+
+        /// <summary>
+        /// plays 排序键：StartTime 升序，同 StartTime 下 Hit 优先于 Swipe
+        /// （为 FindEarliestTarget 的 hit 优先规则铺路，也让 BindSkippableHitsBySwipe 的窗口上界 break 成立）。
+        /// </summary>
+        private struct DJAutoPlayStartTimeComparer : IComparer<DJAutoPlayData>
         {
-            _djAutoHands[0] = new DJAutoHand { Pos = new float2(-2.4f, 0f), State = HandState.Off, CurIdx = -1, BindingSwipe = -1, FreeTime = float.NegativeInfinity };
-            _djAutoHands[1] = new DJAutoHand { Pos = new float2(2.4f, 0f), State = HandState.Off, CurIdx = -1, BindingSwipe = -1, FreeTime = float.NegativeInfinity };
+            [BurstCompile]
+            public int Compare(DJAutoPlayData a, DJAutoPlayData b)
+            {
+                int c = a.StartTime.CompareTo(b.StartTime);
+                if (c != 0) return c;
+                // Hit=1 < Swipe=2，升序即 Hit 优先；NoneOrFinished=0 不会出现在 plays 中
+                return ((byte)a.Type).CompareTo((byte)b.Type);
+            }
         }
 
-        #region TouchCombine
+
+
+        #region CombineTouchThisTiming
 
         /// <summary>
         /// 本 timing 的 touch hit 双圆预合并：双手只有两只，用最多两个覆盖圆覆盖本 timing 尽量多的 touch 落点。
         /// 第一圆候选 = 每 1/2/3 点的最小覆盖圆；剩余点交给第二圆同样「尽量多管」（≤MAX 覆盖最多点的单圆）。
         /// 半径上限 DJAUTO_HAND_MAX_RADIUS、下限 DJAUTO_HAND_RADIUS；
         /// 选优：合计覆盖点数最多 -> max(r1,r2) 最小 -> |r1-r2| 最小。
-        /// 超上限废弃；覆盖不到的点不生成 hit -> Miss 看命。计算由 Burst 直接把结果 Add 进 hits。
+        /// 超上限废弃；覆盖不到的点不生成 hit -> Miss 看命。计算由 Burst 直接把结果 Add 进 infos。
         /// </summary>
         private void CombineTouchHitsThisTiming()
         {
-            var refs = _djAutoTouchHitsThisTiming;
-            int n = refs.Length;
+            var infos = _djAutoTouchInfosThisTiming;
+            int n = infos.Length;
             if (n == 0) return;
             if (n == 1)
             {
-                var r = refs[0];
-                var sensor = r.Type == SimaiNoteType.TouchHold ? touchHolds[r.Index].sensor : touches[r.Index].sensor;
+                var r = infos[0];
+                var sensor = r.Sensor;
                 var pos = MajPos.GetSensorJudgePos(sensor);
-                hits.Add(new DJAutoHitData(pos, DJAUTO_HAND_RADIUS,
-                    GetTouchStartTime(r, touches, touchHolds),
-                    GetTouchEndTime(r, touches, touchHolds), -1));
-                refs.Clear();
+                plays.Add(new DJAutoPlayData(
+                    pos,
+                    DJAUTO_HAND_RADIUS,
+                    r.StartTime,
+                    r.EndTime,
+                    -1));
+                infos.Clear();
                 return;
             }
 
             // 四圆：双圆 C1/C2 覆盖最多点，剩余点 S' 再算双圆 C3/C4（hashmap 缓存复用）。
-            var four = ComputeFourCircle(refs.AsArray());
-            CombineTouchHitsBurst(refs.AsArray(), touches, touchHolds, four, DJAUTO_HAND_RADIUS, DJAUTO_HAND_MAX_RADIUS, ref hits);
-            refs.Clear();
+            var four = ComputeFourCircle(infos.AsArray());
+            CombineTouchHitsBurst(infos.AsArray(),
+                four,
+                DJAUTO_HAND_RADIUS, DJAUTO_HAND_MAX_RADIUS,
+                ref plays);
+            infos.Clear();
         }
 
+
         /// <summary>四圆 = 两次双圆（缓存复用）：first 覆盖最多点，second 覆盖 first 之外的剩余点。</summary>
-        private FourCircleBest ComputeFourCircle(NativeArray<DJAutoNoteRef> refs)
+        private FourCircleBest ComputeFourCircle(NativeArray<DJAutoTouchInfo> infos)
         {
-            var first = GetOrComputeTwoCircle(refs);
+            var first = GetOrComputeTwoCircle(infos);
             var four = new FourCircleBest { First = first };
 
-            int n = refs.Length;
-            var remaining = new NativeList<DJAutoNoteRef>(n, Allocator.Temp);
+            int n = infos.Length;
+            var remaining = new NativeList<DJAutoTouchInfo>(n, Allocator.Temp);
             for (int i = 0; i < n; i++)
             {
-                var r = refs[i];
-                var pos = GetTouchPos(r, touches, touchHolds);
+                var r = infos[i];
+                var pos = r.Pos;
                 bool covered = (first.HasC1 && math.distance(pos, first.C1) <= first.R1 + MajGeo.Epsilon)
                             || (first.HasC2 && math.distance(pos, first.C2) <= first.R2 + MajGeo.Epsilon);
                 if (!covered) remaining.Add(r);
@@ -134,49 +179,26 @@ namespace MajdataViewX.Managers
             remaining.Dispose();
             return four;
         }
-
         /// <summary>sensor 子集掩码池化：重复 touch 模式直接复用双圆手法，只算新的。</summary>
-        private TwoCircleBest GetOrComputeTwoCircle(NativeArray<DJAutoNoteRef> refs)
+        private TwoCircleBest GetOrComputeTwoCircle(NativeArray<DJAutoTouchInfo> infos)
         {
-            ulong mask = ComputeSensorMask(refs, touches, touchHolds);
+            ulong mask = ComputeSensorMask(infos);
             if (_touchComboCache.TryGetValue(mask, out var best))
                 return best;
-            best = ComputeTwoCircle(refs, touches, touchHolds, DJAUTO_HAND_RADIUS, DJAUTO_HAND_MAX_RADIUS);
+            best = ComputeTwoCircle(infos, DJAUTO_HAND_RADIUS, DJAUTO_HAND_MAX_RADIUS);
             _touchComboCache[mask] = best;
             return best;
         }
 
-        [BurstCompile]
-        private static float2 GetTouchPos(DJAutoNoteRef r, NativeList<TouchData> touches, NativeList<TouchHoldData> touchHolds)
-        {
-            var sensor = r.Type == SimaiNoteType.TouchHold ? touchHolds[r.Index].sensor : touches[r.Index].sensor;
-            return MajPos.GetSensorJudgePos(sensor);
-        }
 
         [BurstCompile]
-        private static float GetTouchStartTime(DJAutoNoteRef r, NativeList<TouchData> touches, NativeList<TouchHoldData> touchHolds)
-            => r.Type == SimaiNoteType.TouchHold ? touchHolds[r.Index].time : touches[r.Index].time;
-
-        [BurstCompile]
-        private static float GetTouchEndTime(DJAutoNoteRef r, NativeList<TouchData> touches, NativeList<TouchHoldData> touchHolds)
-        {
-            if (r.Type == SimaiNoteType.TouchHold)
-            {
-                var th = touchHolds[r.Index];
-                return th.time + th.LastFor + DJAUTO_TOUCHHOLD_RELEASE_TIME_SEC;
-            }
-            var t = touches[r.Index];
-            return t.time + DJAUTO_TOUCH_RELEASE_TIME_SEC;
-        }
-
-        [BurstCompile]
-        private static ulong ComputeSensorMask(NativeArray<DJAutoNoteRef> refs, NativeList<TouchData> touches, NativeList<TouchHoldData> touchHolds)
+        private static ulong ComputeSensorMask(NativeArray<DJAutoTouchInfo> infos)
         {
             ulong mask = 0;
-            for (int i = 0; i < refs.Length; i++)
+            for (int i = 0; i < infos.Length; i++)
             {
-                var r = refs[i];
-                var sensor = r.Type == SimaiNoteType.TouchHold ? touchHolds[r.Index].sensor : touches[r.Index].sensor;
+                var r = infos[i];
+                var sensor = r.Sensor;
                 mask |= 1UL << (int)sensor;
             }
             return mask;
@@ -184,20 +206,19 @@ namespace MajdataViewX.Managers
 
         [BurstCompile]
         private static void CombineTouchHitsBurst(
-            NativeArray<DJAutoNoteRef> refs,
-            NativeList<TouchData> touches, NativeList<TouchHoldData> touchHolds,
+            NativeArray<DJAutoTouchInfo> infos,
             FourCircleBest four,
             float handRadius,
             float maxRadius,
-            ref NativeList<DJAutoHitData> hits)
+            ref NativeList<DJAutoPlayData> plays)
         {
-            int n = refs.Length;
+            int n = infos.Length;
             // 同一 timing 内所有 touch 的 start time 相同，直接取。
-            float startMin = GetTouchStartTime(refs[0], touches, touchHolds);
+            float startMin = infos[0].StartTime;
             float maxEnd = float.MinValue;
             for (int i = 0; i < n; i++)
             {
-                var end = GetTouchEndTime(refs[i], touches, touchHolds);
+                var end = infos[i].EndTime;
                 if (end > maxEnd) maxEnd = end;
             }
 
@@ -206,37 +227,37 @@ namespace MajdataViewX.Managers
             // 短段：四圆扫过（C1->C3 / C2->C4）或双圆静态（覆盖全部时）
             if (maxEnd <= split)
             {
-                EmitShortSegment(ref hits, four, startMin, maxEnd);
+                EmitShortSegment(ref plays, four, startMin, maxEnd);
                 return;
             }
 
             // 长段：仅双圆静态（剩余 Miss）。第一段短按用 first.C1/C2。
-            EmitCircles(ref hits, four.First, startMin, startMin + DJAUTO_TOUCH_RELEASE_TIME_SEC);
+            EmitCircles(ref plays, four.First, startMin, startMin + DJAUTO_TOUCH_RELEASE_TIME_SEC);
 
             // 长 touchhold（endtime > 阈值）按 endtime 升序排序。遍历中 gap >= TOUCH_HIT_RESIZE_HAND_THRESHOLD 断开：
             // 对「当前段及之后全部未结束的 hit」重新算一次双圆（= 前面遍历过的 + 后面未遍历的），
             // start 取上一段末（第一段为 split），end 取本段末（最后一个遍历到的最大 endtime）。如此往复到最后一个。
-            var longs = new NativeList<DJAutoNoteRef>(n, Allocator.Temp);
+            var longs = new NativeList<DJAutoTouchInfo>(n, Allocator.Temp);
             for (int i = 0; i < n; i++)
-                if (GetTouchEndTime(refs[i], touches, touchHolds) > split) longs.Add(refs[i]);
+                if (infos[i].EndTime > split) longs.Add(infos[i]);
             if (longs.Length > 0)
             {
-                SortByEndTime(longs, touches, touchHolds);
+                SortByEndTime(longs);
                 int m = longs.Length;
                 int segIndex = 0;
                 float segBegin = split;
                 for (int i = 1; i <= m; i++)
                 {
-                    float endIm1 = GetTouchEndTime(longs[i - 1], touches, touchHolds);
+                    float endIm1 = longs[i - 1].EndTime;
                     bool breakHere = i == m
-                        || (GetTouchEndTime(longs[i], touches, touchHolds) - endIm1) >= TOUCH_HIT_RESIZE_HAND_THRESHOLD;
+                        || (longs[i].EndTime - endIm1) >= TOUCH_HIT_RESIZE_HAND_THRESHOLD;
                     if (!breakHere) continue;
 
                     int remLen = m - segIndex;
-                    var rem = new NativeArray<DJAutoNoteRef>(remLen, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+                    var rem = new NativeArray<DJAutoTouchInfo>(remLen, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
                     for (int j = 0; j < remLen; j++) rem[j] = longs[segIndex + j];
-                    var segBest = ComputeTwoCircle(rem, touches, touchHolds, handRadius, maxRadius);
-                    EmitCircles(ref hits, segBest, segBegin, endIm1);
+                    var segBest = ComputeTwoCircle(rem, handRadius, maxRadius);
+                    EmitCircles(ref plays, segBest, segBegin, endIm1);
                     rem.Dispose();
                     segBegin = endIm1;
                     segIndex = i;
@@ -245,10 +266,11 @@ namespace MajdataViewX.Managers
             longs.Dispose();
         }
 
+
         /// <summary>短段 emit：双圆覆盖全部则静态 hit，否则四圆扫过 = 每手两个端点 hit（零时长），updater 连按 On 移动实现扫过。</summary>
         [BurstCompile]
         private static void EmitShortSegment(
-            ref NativeList<DJAutoHitData> hits,
+            ref NativeList<DJAutoPlayData> plays,
             FourCircleBest four, float startTime, float endTime)
         {
             var first = four.First;
@@ -256,42 +278,56 @@ namespace MajdataViewX.Managers
             // 双圆已覆盖全部 -> 静态 hit
             if (!second.HasC1)
             {
-                EmitCircles(ref hits, first, startTime, endTime);
+                EmitCircles(ref plays, first, startTime, endTime);
                 return;
             }
             // 四圆扫过：C1->C3 一条轨迹（两端零时长 hit，中间靠连按 On 移动扫过覆盖剩余点）
             if (first.HasC1)
             {
-                hits.Add(new DJAutoHitData(first.C1, first.R1, startTime, startTime + DJAUTO_TOUCH_RELEASE_TIME_SEC, -2));
-                hits.Add(new DJAutoHitData(second.C1, second.R1, endTime, endTime + DJAUTO_TOUCH_RELEASE_TIME_SEC, -2));
+                plays.Add(new DJAutoPlayData(first.C1, first.R1, startTime, startTime + DJAUTO_TOUCH_RELEASE_TIME_SEC, -2));
+                plays.Add(new DJAutoPlayData(second.C1, second.R1, endTime, endTime + DJAUTO_TOUCH_RELEASE_TIME_SEC, -2));
             }
             // C2->C4（有 C4 则扫过，否则 C2 静态）
             if (first.HasC2)
             {
                 if (second.HasC2)
                 {
-                    hits.Add(new DJAutoHitData(first.C2, first.R2, startTime, startTime + DJAUTO_TOUCH_RELEASE_TIME_SEC, -2));
-                    hits.Add(new DJAutoHitData(second.C2, second.R2, endTime, endTime + DJAUTO_TOUCH_RELEASE_TIME_SEC, -2));
+                    plays.Add(new DJAutoPlayData(first.C2, first.R2, startTime, startTime + DJAUTO_TOUCH_RELEASE_TIME_SEC, -2));
+                    plays.Add(new DJAutoPlayData(second.C2, second.R2, endTime, endTime + DJAUTO_TOUCH_RELEASE_TIME_SEC, -2));
                 }
                 else
-                    hits.Add(new DJAutoHitData(first.C2, first.R2, startTime, endTime, -2));
+                    plays.Add(new DJAutoPlayData(first.C2, first.R2, startTime, endTime, -2));
             }
         }
+        /// <summary>把最优两圆以统一的 startTime/endTime 写入 infos（0/1/2 个）。</summary>
+        [BurstCompile]
+        private static void EmitCircles(ref NativeList<DJAutoPlayData> plays, TwoCircleBest best, float startTime, float endTime)
+        {
+            if (best.HasC1)
+                plays.Add(new DJAutoPlayData(best.C1, best.R1, startTime, endTime, -2));
+            if (best.HasC2)
+                plays.Add(new DJAutoPlayData(best.C2, best.R2, startTime, endTime, -2));
+        }
 
-        /// <summary>对给定子集做双圆枚举（1/2/3 点候选 + 第二圆尽量多管），返回最优两圆，不写 hits。</summary>
+
+        // pure math...
+
+
+
+        /// <summary>对给定子集做双圆枚举（1/2/3 点候选 + 第二圆尽量多管），返回最优两圆，不写 infos。</summary>
         [BurstCompile]
         private static TwoCircleBest ComputeTwoCircle(
-            NativeArray<DJAutoNoteRef> refs, NativeList<TouchData> touches, NativeList<TouchHoldData> touchHolds,
+            NativeArray<DJAutoTouchInfo> infos,
             float handRadius, float maxRadius)
         {
-            int n = refs.Length;
+            int n = infos.Length;
             var best = new TwoCircleBest { Max = float.MaxValue, Diff = float.MaxValue };
             if (n == 0) return best;
 
             // 预计算各点 Pos（从 touch/touchhold sensor）
             var posArr = new NativeArray<float2>(n, Allocator.Temp);
             for (int i = 0; i < n; i++)
-                posArr[i] = GetTouchPos(refs[i], touches, touchHolds);
+                posArr[i] = infos[i].Pos;
 
             for (int i = 0; i < n; i++)
                 ConsiderFirst(posArr, handRadius, maxRadius, new Circle { C = posArr[i], R = 0f }, ref best);
@@ -308,26 +344,16 @@ namespace MajdataViewX.Managers
             return best;
         }
 
-        /// <summary>把最优两圆以统一的 startTime/endTime 写入 hits（0/1/2 个）。</summary>
-        [BurstCompile]
-        private static void EmitCircles(ref NativeList<DJAutoHitData> hits, TwoCircleBest best, float startTime, float endTime)
-        {
-            if (best.HasC1)
-                hits.Add(new DJAutoHitData(best.C1, best.R1, startTime, endTime, -2));
-            if (best.HasC2)
-                hits.Add(new DJAutoHitData(best.C2, best.R2, startTime, endTime, -2));
-        }
-
         /// <summary>按 EndTime 升序插入排序（长 touchhold 通常很少，Burst 友好）。</summary>
         [BurstCompile]
-        private static void SortByEndTime(NativeList<DJAutoNoteRef> list, NativeList<TouchData> touches, NativeList<TouchHoldData> touchHolds)
+        private static void SortByEndTime(NativeList<DJAutoTouchInfo> list)
         {
             for (int i = 1; i < list.Length; i++)
             {
                 var key = list[i];
-                float keyEnd = GetTouchEndTime(key, touches, touchHolds);
+                float keyEnd = key.EndTime;
                 int j = i - 1;
-                while (j >= 0 && GetTouchEndTime(list[j], touches, touchHolds) > keyEnd)
+                while (j >= 0 && list[j].EndTime > keyEnd)
                 {
                     list[j + 1] = list[j];
                     j--;
@@ -483,6 +509,15 @@ namespace MajdataViewX.Managers
         }
 
         [BurstCompile]
+        private struct Circle { public float2 C; public float R; }
+        [BurstCompile]
+        private struct SingleBest
+        {
+            public float2 C;
+            public float R;
+            public int Cov;
+        }
+        [BurstCompile]
         private struct TwoCircleBest
         {
             public int Covered;
@@ -491,7 +526,6 @@ namespace MajdataViewX.Managers
             public float2 C1, C2;
             public float R1, R2;
         }
-
         /// <summary>四圆 = 两次双圆：First(C1/C2) 覆盖最多点，Second(C3/C4) 覆盖剩余；Second.HasC1=false 表示双圆已覆盖全部。</summary>
         [BurstCompile]
         private struct FourCircleBest
@@ -501,85 +535,43 @@ namespace MajdataViewX.Managers
         }
 
         [BurstCompile]
-        private struct SingleBest
+        internal struct DJAutoTouchInfo
         {
-            public float2 C;
-            public float R;
-            public int Cov;
-        }
-
-        [BurstCompile]
-        private struct Circle { public float2 C; public float R; }
-
-        /// <summary>指向 note 的引用，避免重复存 Pos/时长。Type 取 Touch/TouchHold。</summary>
-        [BurstCompile]
-        internal struct DJAutoNoteRef
-        {
-            public int Index;
-            public SimaiNoteType Type;
+            public SensorType Sensor;
+            public float2 Pos;
+            public float StartTime;
+            public float EndTime;
         }
 
         #endregion
 
 
-        internal enum HandState : byte { Off, Moving, On }
 
-        /// <summary>一只手的状态：Pos 当前位置，State 状态机，CurIdx/CurKind 当前在线目标（-1 无），Moving 插值参数，ServeEnd On 最晚结束（连按累加）。两只手各自独立在线查找，互不关联。</summary>
-        [BurstCompile]
-        internal struct DJAutoHand
-        {
-            public float2 Pos;
-            public HandState State;
-            public int CurIdx;       // 当前目标在 hits/swipes 中的索引，-1 无
-            public byte CurKind;     // 0=hit 1=swipe
-            public int BindingSwipe; // 当前目标将要接续的 swipe 索引，-1 无
 
-            public float MoveStart;
-            public float MoveEnd;
-            public float2 MoveFrom;
-            public float2 MoveTo;
 
-            public float Angle;      //当前相对原始方向的角度
-
-            public float ServeEnd;   // On 状态最晚结束时间（多 data 连按等最后一个）
-            public float FreeTime;   // Off 时(手空闲)的时刻
-        }
-
-        /// <summary>沿 swipe.Arrows 弧长参数化插值，镜像 Job 内同算法，供 Load 预计算绑定用。</summary>
-        [BurstCompile]
-        private static unsafe float2 ComputeSwipePosAt(SlidePose* arrows, int count, float startTime, float endTime, float time, float bindSkippableCNearestTime = -1)
-        {
-            if (count <= 1 || arrows == null) return float2.zero;
-            var duration = endTime - startTime;
-            var progress = duration > 0f ? math.saturate((time - startTime) / duration) : 0f;
-            int idxLast = count - 1;
-            var distance = progress * arrows[idxLast].L;
-            int processIdx = 1;
-            while (processIdx < idxLast && arrows[processIdx].L < distance) processIdx++;
-            var p0 = arrows[processIdx - 1];
-            var p1 = arrows[processIdx];
-            var t = math.unlerp(p0.L, p1.L, distance);
-            var pos = new float2(math.lerp(p0.X, p1.X, t), math.lerp(p0.Y, p1.Y, t));
-            if (bindSkippableCNearestTime != -1)
-            {
-                if (math.abs(time - bindSkippableCNearestTime) <= 0.01f)
-                {
-                    // 蹭C区touch
-                    return pos * 0.56f;
-                }
-            }
-            return pos;
-        }
+        #region BindSkippableHitsBySwipe
 
         /// <summary>target 到 swipe 路径采样点的最近顶点（arrows 间隔短，免段内投影）：返回最近距离与 swipe 手到达该点的时刻。</summary>
         [BurstCompile]
-        private static unsafe void SwipePathNearest(in DJAutoSwipeData swipe, float2 target,
+        private static unsafe void SwipePathNearest(in DJAutoPlayData play, float2 target,
             out float nearestDist, out float nearestTime)
         {
-            var arrows = swipe.Arrows;
-            var count = swipe.ArrowCount;
-            var startTime = swipe.StartTime;
-            var endTime = swipe.EndTime;
+            if (play.Type is DJAutoPlayType.NoneOrFinished)
+            {
+                nearestDist = default;
+                nearestTime = default;
+                return;
+            }
+            if (play.Type is DJAutoPlayType.Hit)
+            {
+                nearestDist = math.distance(play.Pos, target);
+                nearestTime = play.StartTime;
+                return;
+            }
+            var arrows = play.BindSlide->slideArrows;
+            var count = play.BindSlide->slideArrowsCount;
+            var startTime = play.StartTime;
+            var endTime = play.EndTime;
 
             nearestDist = float.MaxValue;
             nearestTime = startTime;
@@ -592,6 +584,7 @@ namespace MajdataViewX.Managers
                 var p = arrows[k];
                 // 0.3f的神秘常数是取自最小判定区E的半径的再一半，
                 // 因为实际上不需要完全摸到那个区的中点
+                // 这里用不上ComputeSwipePosAt，没必要那么精细
                 var d = math.distance(new float2(p.X, p.Y), target) - 0.3f;
                 if (d < nearestDist)
                 {
@@ -602,65 +595,157 @@ namespace MajdataViewX.Managers
             nearestTime = totalL > 0f ? startTime + (bestL / totalL) * duration : startTime;
         }
 
+
         /// <summary>
         /// 标记可被 swipe 顺带覆盖的 hit：swipe 路径经过 hit 附近，且手到达最近点时 hit 仍在触发窗口内，
-        /// 则绑定到该 swipe（设 BoundSwipe）并把 ExpandedRadius 抬到能覆盖它。运行时 FindEarliestTarget 跳过绑定 hit
+        /// 则绑定到该 swipe（设 BindSwipe）并把 ExpandedRadius 抬到能覆盖它。运行时 FindEarliestTarget 跳过绑定 hit
         /// （不独立认领，让手认领 swipe），CurrentDataPos 用 ExpandedRadius 触发顺带覆盖。在所有 hit/swipe emit 完、Arrows 回填后调用。
         /// </summary>
         [BurstCompile]
         private unsafe void BindSkippableHitsBySwipe()
         {
-            for (int i = 0; i < hits.Length; i++)
+            for (int i = 0; i < plays.Length; i++)
             {
-                var hit = hits[i];
-                if (hit.BoundSwipe == -2) continue;  // 不允许被 swipe 顺带覆盖（tap/hold）
-                float bestReq = float.MaxValue;
-                int bestSwipe = -1;
+                ref var hit = ref plays.ElementRef(i);
+                if (hit.Type is not DJAutoPlayType.Hit) continue;
+                if (hit.BindSwipe == -2) continue;  // 不允许被 swipe 顺带覆盖（tap/hold）
+                var bestReq = float.MaxValue;
+                var bestSwipe = -1;
+                //只有touch是允许跳过的，先这样写死
                 var perfectStart = hit.StartTime - NoteHelper.TOUCH_JUDGE_SEG_1ST_PERFECT_MSEC / 1000;
                 var perfectEnd = hit.StartTime + NoteHelper.TOUCH_JUDGE_SEG_3RD_PERFECT_MSEC / 1000;
-                for (int j = 0; j < swipes.Length; j++)
+                for (int j = 0; j < plays.Length; j++)
                 {
-                    var swipe = swipes[j];
-                    if (swipe.ArrowCount <= 0 || swipe.Arrows == null) continue;
-                    // 先做廉价时间筛选：若 swipe 整段与 hit 的 perfect 窗口没有交集，
-                    // 不必遍历该 swipe 的全部 arrows。
-                    if (swipe.EndTime < perfectStart || swipe.StartTime > perfectEnd) continue;
+                    ref var swipe = ref plays.ElementRef(j);
+                    // plays 已按 StartTime 升序：超过 perfect 窗口上界后，后面的只会更晚，不可能相交
+                    if (swipe.StartTime > perfectEnd) break;
+                    if (swipe.Type is not DJAutoPlayType.Swipe) continue;
+                    var arrows = swipe.BindSlide->slideArrows;
+                    var count = swipe.BindSlide->slideArrowsCount;
+                    if (count <= 0 || arrows == null) continue;
+                    // 廉价时间筛选下界：swipe 整段已早于窗口（EndTime 非单调，只能 continue 不能 break）
+                    if (swipe.EndTime < perfectStart) continue;
                     // 路径上离 hit 最近的点：swipe 手经过该点时若 hit 仍在 perfect 区间内，即可顺带覆盖
-                    SwipePathNearest(swipe, hit.Pos, out float d, out float tArrive);
-                    if (tArrive < perfectStart || tArrive > perfectEnd) continue;  // 到达时 touch 已经不在 perfect 区间了
+                    SwipePathNearest(swipe, hit.Pos, out float dist, out float time);
+                    if (time < perfectStart || time > perfectEnd) continue;  // 到达时 touch 已经不在 perfect 区间了
                     if (math.all(hit.Pos == 0f) &&
-                        d <= MajGeo.GroupBRadius + 0.01) // 可以蹭到C区touch
+                        dist <= MajGeo.GroupBRadius) // 可以蹭到C区touch
                     {
-                        ref var h = ref hits.ElementRef(i);
-                        h.BoundSwipe = j;
-                        ref var s = ref swipes.ElementRef(j);
-                        s.BindSkippableCNearestTime = tArrive;
-                        s.Radius += 0.2f;
+                        hit.BindSwipe = j;
+                        swipe.SkipCTime = time;
+                        swipe.Radius += 0.2f;
                         break;
                     }
-                    if (d > DJAUTO_HAND_MAX_RADIUS) continue;  // 扩到最大半径也够不着
-                    if (d < bestReq)
+                    if (dist > DJAUTO_HAND_MAX_RADIUS) continue;  // 扩到最大半径也够不着
+                    if (dist < bestReq)
                     {
-                        bestReq = d;
+                        bestReq = dist;
                         bestSwipe = j;
                     }
                 }
                 if (bestSwipe >= 0)
                 {
-                    ref var h = ref hits.ElementRef(i);
-                    h.BoundSwipe = bestSwipe;
-                    ref var s = ref swipes.ElementRef(bestSwipe);
-                    s.Radius = math.max(s.Radius, bestReq);
+                    hit.BindSwipe = bestSwipe;
+                    ref var swipe = ref plays.ElementRef(bestSwipe);
+                    swipe.Radius = math.max(swipe.Radius, bestReq);
                 }
             }
         }
 
-        /// <summary>
-        /// DJAuto 双手自动演奏：两只手各自独立在线 FindNext（时序优先+空间 tiebreaker）。wifi 不排除他手，允许两手共享同一 wifi（side 按手 idx 派生 ±11.25°）。状态机 Off/Moving/On。
-        /// On 时触发：世界坐标 hit/swipe 调 HandleWorldPosInput（sensor+红手）；外键 hit 调 HandleButtonInput（按键+红手）。Off/Moving 渲染灰色手圆不触发。
-        /// </summary>
+        #endregion
+
+
+        #region BindPlayPatterns
+
+        private void BindPlayPatterns()
+        {
+            for (var i = 0; i < plays.Length; i++)
+            {
+                ref var play = ref plays.ElementRef(i);
+                if (play.Type is DJAutoPlayType.NoneOrFinished) continue;
+
+                for (ushort j = 1; j <= 8; j++)
+                {
+                    if (i + j >= plays.Length) break;
+                    ref var play2 = ref plays.ElementRef(i + j);
+
+                    // 扫键绑定：hit跟随最近的（辐角为一个键左右）的hit，前hit经过排序一定在后hit前面，不考虑间隔超多plays的情况
+                    if (play.Type is DJAutoPlayType.Hit &&
+                        play2.Type is DJAutoPlayType.Hit &&
+                        math.abs(play.StartTime - play2.StartTime) < DJAUTO_HIT_HIT_CHAIN_SEC &&
+                        math.abs(math.atan2(
+                            play.Pos.x * play2.Pos.y - play.Pos.y * play2.Pos.x,
+                            math.dot(play.Pos, play2.Pos)))
+                        < DJAUTO_HIT_HIT_CHAIN_ANG)
+                    {
+                        // hit 不按满 0.022 直接转
+                        play.EndTime = play.StartTime;
+                        play.BindPlayOffset = j;
+                        play2.IsReserved = true;
+                        break;
+                    }
+
+                    // 拍划绑定：swipe跟随最近的hit，hit经过排序一定在swipe前面
+                    if (play.Type is DJAutoPlayType.Hit &&
+                        play2.Type is DJAutoPlayType.Swipe &&
+                        math.abs(play.StartTime - play2.StartTime) < DJAUTO_HIT_SWIPE_CHAIN_SEC &&
+                        math.distancesq(play.Pos, play2.GetEntryPos()) < math.pow(DJAUTO_HIT_SWIPE_CHAIN_DIST, 2)) //相对宽松，适配大touch hit
+                    {
+                        // hit 不按满 0.022 直接转
+                        play.EndTime = play.StartTime;
+                        play.BindPlayOffset = j;
+                        play2.StartTime += DJAUTO_HIT_SWIPE_ENTER_DELAY;
+                        play2.IsReserved = true;
+                        break;
+                    }
+
+                    // 一笔画绑定：swipe跟随最近结束的swipe，前swipe经过排序一定在后swipe前面，不考虑间隔超多plays的情况
+                    if (play.Type is DJAutoPlayType.Swipe && !play.IsWifi &&
+                        play2.Type is DJAutoPlayType.Swipe &&
+                        math.abs(play.EndTime - play2.StartTime) < DJAUTO_SWIPE_SWIPE_CHAIN_SEC &&
+                        math.distancesq(play.GetEndPos(), play2.GetEntryPos()) < math.pow(DJAUTO_SWIPE_SWIPE_CHAIN_DIST, 2))
+                    {
+                        play.BindPlayOffset = j;
+                        play2.IsReserved = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        #endregion
+
+
+        internal enum DJAutoHandState { Off, On, Moving, OnMovingToBoundNext }
         [BurstCompile]
-        private unsafe struct HitSwipeUpdateJob : IJob
+        internal struct DJAutoHand
+        {
+            public float2 Pos;
+            public readonly float Radius => Current.Radius;
+            public DJAutoHandState State;
+
+            public int CurrentIdx;               // 当前目标的 play 的索引，供释放用，实际调用Current更快
+            public DJAutoPlayData Current;       // 当前目标的 play
+
+            public float MoveStart;
+            public float MoveEnd;
+            public float2 MoveFrom;
+            public float2 MoveTo;
+
+            public float SweptAngle;      //当前相对原始方向的角度（弧度）
+
+            public float ServeEnd;
+        }
+
+        /// <summary>重置双手到初始位（半径 2.4 = 主圆一半，平行 x 轴直径两端），状态 Off，CurIdx=-1 无目标，FreeTime=-inf 确保初始可达。</summary>
+        private void ResetDJAutoHands()
+        {
+            _djAutoHands[0] = new DJAutoHand { Pos = new float2(-2.4f, 0f), Current = default };
+            _djAutoHands[1] = new DJAutoHand { Pos = new float2(2.4f, 0f), Current = default };
+        }
+
+        [BurstCompile]
+        private unsafe struct PlayUpdateJob : IJob
         {
             public NativeArray<float> _djAutoMoveCurve;
             private float DJAutoMoveEvaluate(float t)
@@ -669,411 +754,189 @@ namespace MajdataViewX.Managers
                 return _djAutoMoveCurve[(int)(t * (DJAUTO_CURVE_RESOLUTION - 1))];
             }
 
+            public NativeArray<DJAutoPlayData> plays;
             public NativeArray<DJAutoHand> hands;          // [0]=left [1]=right
-            public NativeArray<DJAutoHitData> hits;
-            public NativeArray<DJAutoSwipeData> swipes;
-
-            private DJAutoHand _leftHand;
-            private DJAutoHand _rightHand;
 
             public void Execute()
             {
-                var time = CurTime;
-                _leftHand = hands[0];
-                _rightHand = hands[1];
-
+                var time = TimeData.DJAutoTime;
                 // 先各自更新状态，再统一按权重分配尚未占用的 data。
-                bool leftCanChain = UpdateHandState(ref _leftHand, time);
-                bool rightCanChain = UpdateHandState(ref _rightHand, time);
+                bool leftCanChain = UpdateHandState(0, time);
+                bool rightCanChain = UpdateHandState(1, time);
                 FindNext(time, leftCanChain, rightCanChain);
 
-                RenderAndTrigger(ref _leftHand, -1, time);
-                RenderAndTrigger(ref _rightHand, +1, time);
-
-                hands[0] = _leftHand;
-                hands[1] = _rightHand;
+                RenderAndTrigger(0);
+                RenderAndTrigger(1);
             }
 
             /// <summary>只推进单手已锁目标的状态，不做目标分配。返回值表示本帧刚从 On 释放，可在统一分配时保持连按。</summary>
-            private bool UpdateHandState(ref DJAutoHand hand, float time)
+            private bool UpdateHandState(int handIdx, float time)
             {
-                if (hand.CurIdx < 0) return false;
+                if (hands[handIdx].Current.Type is DJAutoPlayType.NoneOrFinished) return false;
 
-                float startTime = GetStartTime(ref hand);
-                if (hand.State == HandState.On)
+                ref var hand = ref hands.ElementRef(handIdx);
+                switch (hand.State)
                 {
-                    bool released = hand.CurKind == 1
-                        ? SwipeReleased(swipes[hand.CurIdx], time)
-                        : time >= hand.ServeEnd;
-                    if (!released) return false;
+                    case DJAutoHandState.On:
+                        {
+                            hand.Pos = hand.Current.GetCurPos(time, handIdx == 0 ? -1 : +1);
+                            var released = hand.Current.IsReleased(time);
+                            if (released)
+                            {
+                                if (hand.Current.BindPlayOffset != 0)
+                                {
+                                    plays[hand.CurrentIdx] = default;
+                                    hand.CurrentIdx += hand.Current.BindPlayOffset;
+                                    var next = plays[hand.CurrentIdx];
+                                    hand.Current = next;
+                                    hand.ServeEnd = next.EndTime;
 
-                    if (hand.BindingSwipe >= 0)
-                    {
-                        var next = GetBindingSwipeTarget(ref hand);
-                        hand.CurIdx = hand.BindingSwipe;
-                        hand.CurKind = 1;
-                        hand.BindingSwipe = -1;
-                        hand.State = HandState.On;
-                        hand.MoveFrom = hand.Pos;
-                        hand.MoveTo = next.EntryPos;
-                        hand.MoveStart = hand.ServeEnd;
-                        hand.MoveEnd = next.StartTime;
-                        hand.ServeEnd = next.EndTime;
-                        TryBindNextSwipe(ref hand);
-                        return false;
-                    }
+                                    hand.MoveFrom = hand.Pos;
+                                    hand.MoveTo = hand.Current.GetEntryPos();
+                                    hand.MoveStart = time;
+                                    hand.MoveEnd = hand.Current.StartTime;
+                                    hand.State = DJAutoHandState.OnMovingToBoundNext;
 
-                    hand.State = HandState.Off;
-                    hand.FreeTime = hand.CurKind == 1 ? time : hand.ServeEnd;
-                    hand.CurIdx = -1;
-                    return true;
-                }
+                                    return false;
+                                }
+                                hand.State = DJAutoHandState.Off;
+                                plays[hand.CurrentIdx] = default;
+                                hand.Current = default;
+                                return true;
+                            }
+                            break;
+                        }
+                    case DJAutoHandState.OnMovingToBoundNext:
+                        {
+                            var t = math.saturate((time - hand.MoveStart) / math.max(hand.MoveEnd - hand.MoveStart, 1e-5f));
+                            var pos1 = hand.Pos;
+                            var pos2 = hand.Pos = math.lerp(hand.MoveFrom, hand.MoveTo, t);
+                            if (time >= hand.Current.StartTime)
+                            {
+                                hand.State = DJAutoHandState.On;
+                                hand.Pos = hand.Current.GetEntryPos();
+                            }
+                            hand.SweptAngle += math.atan2(
+                                pos1.x * pos2.y - pos1.y * pos2.x,
+                                math.dot(pos1, pos2)
+                            );
+                            break;
+                        }
+                    case DJAutoHandState.Off:
+                        {
+                            var startTime = hand.Current.StartTime;
+                            var moveStart = math.max(hand.ServeEnd, startTime - DJAUTO_HAND_PREADVANCE_SEC);
+                            if (time >= moveStart)
+                            {
+                                hand.State = DJAutoHandState.Moving;
+                                hand.MoveFrom = hand.Pos;
+                                hand.MoveTo = hand.Current.GetEntryPos();
+                                hand.MoveStart = moveStart;
+                                hand.MoveEnd = startTime;
+                            }
+                            break;
+                        }
+                    case DJAutoHandState.Moving:
+                        {
+                            var t = math.saturate((time - hand.MoveStart) / math.max(hand.MoveEnd - hand.MoveStart, 1e-5f));
+                            var pos1 = hand.Pos;
+                            var pos2 = hand.Pos = math.lerp(hand.MoveFrom, hand.MoveTo, DJAutoMoveEvaluate(t));
+                            if (time >= hand.Current.StartTime)
+                            {
+                                hand.State = DJAutoHandState.On;
+                                hand.Pos = hand.Current.GetEntryPos();
+                                hand.ServeEnd = hand.Current.EndTime;
+                            }
 
-                if (hand.State == HandState.Off)
-                {
-                    float moveStart = math.max(hand.FreeTime, startTime - DJAUTO_HAND_PREADVANCE_SEC);
-                    if (time < moveStart) return false;
-                    hand.State = HandState.Moving;
-                    hand.MoveFrom = hand.Pos;
-                    hand.MoveTo = GetEntryPos(ref hand);
-                    hand.MoveStart = moveStart;
-                    hand.MoveEnd = startTime;
-                }
-
-                if (hand.State == HandState.Moving)
-                {
-                    var t = math.saturate((time - hand.MoveStart) / math.max(hand.MoveEnd - hand.MoveStart, 1e-5f));
-                    var pos1 = hand.Pos;
-                    var pos2 = hand.Pos = math.lerp(hand.MoveFrom, hand.MoveTo, DJAutoMoveEvaluate(t));
-                    if (time >= startTime)
-                    {
-                        hand.State = HandState.On;
-                        hand.Pos = GetEntryPos(ref hand);
-                        hand.ServeEnd = GetEndTime(ref hand);
-                    }
-                    hand.Angle += math.atan2(
-                        pos1.x * pos2.y - pos1.y * pos2.x,
-                        math.dot(pos1, pos2)
-                    );
+                            hand.SweptAngle += math.atan2(
+                                pos1.x * pos2.y - pos1.y * pos2.x,
+                                math.dot(pos1, pos2)
+                            );
+                            break;
+                        }
                 }
                 return false;
             }
 
-            /// <summary>统一分配空闲手：每个候选只计算一次左右权重；已占用手权重恒为 -1。每轮认领一个最早候选，最多两轮。</summary>
+            /// <summary>统一分配空闲手：遍历 plays 找最早"有空闲手可达"的候选，选 cost 最小手认领并标 IsReserved；最多两轮(双手)。</summary>
             private void FindNext(float time, bool leftCanChain, bool rightCanChain)
             {
-                for (int claimed = 0; claimed < 2; claimed++)
+                // TODO: WIFI, 拍划
+                for (int round = 0; round < 2; round++)
                 {
-                    var next = FindEarliestTarget(time, out int side);
-                    if (!next.Valid) return;
+                    int bestPlayIdx = -1;
+                    int bestHand = -1;
+                    float bestCost = float.MaxValue;
 
-                    if (side < 0)
+                    for (int i = 0; i < plays.Length; i++)
                     {
-                        ClaimTarget(ref _leftHand, next, time, leftCanChain);
-                        TryBindNextSwipe(ref _leftHand);
-                        leftCanChain = false;
+                        var p = plays[i];
+                        if (p.Type is DJAutoPlayType.NoneOrFinished) continue;
+                        if (p.IsReserved) continue;            // 已认领或绑定后继，跳过
+                        if (time > p.EndTime) continue;
+
+                        bool anyReachable = false;
+                        for (int h = 0; h < 2; h++)
+                        {
+                            if (hands[h].Current.Type is not DJAutoPlayType.NoneOrFinished) continue;  // 忙
+                            var cost = ComputeHandCost(hands[h], p, time);
+                            if (cost >= float.MaxValue) continue;  // 来不及
+                            anyReachable = true;
+                            if (cost < bestCost)
+                            {
+                                bestCost = cost;
+                                bestHand = h;
+                                bestPlayIdx = i;
+                            }
+                        }
+                        if (anyReachable) break;  // 最早可达候选已定，不看更晚的
                     }
-                    else
-                    {
-                        ClaimTarget(ref _rightHand, next, time, rightCanChain);
-                        TryBindNextSwipe(ref _rightHand);
-                        rightCanChain = false;
-                    }
+
+                    if (bestPlayIdx < 0) return;  // 无可分配
+
+                    ClaimPlay(bestHand, bestPlayIdx);
                 }
             }
 
-            /// <summary>为一个候选设置当前目标；刚释放且间隔足够短时保持 On，继续沿途扫过，否则从 Off 按正常提前量移动。</summary>
-            private void ClaimTarget(ref DJAutoHand hand, NextTarget next, float time, bool canChain)
+            /// <summary>空闲手认领候选：记录 idx/Current 并标 IsReserved 占用。Current 副本保留原 Type 供执行。</summary>
+            private void ClaimPlay(int handIdx, int playIdx)
             {
-                SetCur(ref hand, next);
-                if (canChain && next.StartTime >= hand.FreeTime && next.StartTime - hand.FreeTime <= DJAUTO_HAND_CHAIN_SEC)
-                {
-                    hand.State = HandState.On;
-                    hand.MoveFrom = hand.Pos;
-                    hand.MoveTo = next.EntryPos;
-                    hand.MoveStart = hand.FreeTime;
-                    hand.MoveEnd = next.StartTime;
-                    hand.ServeEnd = next.EndTime;
-                    return;
-                }
-                UpdateHandState(ref hand, time);
+                ref var hand = ref hands.ElementRef(handIdx);
+                hand.CurrentIdx = playIdx;
+                hand.Current = plays[playIdx];
+                var p = plays[playIdx];
+                p.IsReserved = true;
+                plays[playIdx] = p;
             }
 
-            private void TryBindNextSwipe(ref DJAutoHand hand)
+            /// <summary>空闲手认领候选 p 的 cost(越小越优)：位置就近 + 惯性(刚释放优先) + 交叉惩罚 + 绕角惩罚；硬约束为时间可达。</summary>
+            private readonly float ComputeHandCost(DJAutoHand hand, DJAutoPlayData p, float time)
             {
-                if (hand.CurIdx < 0 || hand.BindingSwipe >= 0) return;
+                var distSq = math.distancesq(hand.Pos, p.GetEntryPos());
 
-                float2 sourcePos;
-                float sourceEnd;
-                if (hand.CurKind == 0)
-                {
-                    var hit = hits[hand.CurIdx];
-                    sourcePos = hit.Pos;
-                    sourceEnd = hit.EndTime;
-                }
-                else
-                {
-                    var swipe = swipes[hand.CurIdx];
-                    if (swipe.ArrowCount <= 0 || swipe.Arrows == null) return;
-                    var endArrow = swipe.Arrows[swipe.ArrowCount - 1];
-                    sourcePos = new float2(endArrow.X, endArrow.Y);
-                    sourceEnd = swipe.EndTime;
-                }
+                // 硬约束：以最大速度从当前位移动能否在 StartTime(含迟到容差)到位(两边平方免开方)
+                float reachWindow = (p.StartTime + DJAUTO_COST_REACH_TOL - time) * DJAUTO_HAND_MAX_SPEED;
+                if (reachWindow < 0f || distSq > reachWindow * reachWindow) return float.MaxValue;
 
-                float bestAbsGap = float.MaxValue;
-                int bestIdx = -1;
-                for (int i = 0; i < swipes.Length; i++)
-                {
-                    if (IsClaimed(i, 1)) continue;
-                    var swipe = swipes[i];
-                    float gap = swipe.StartTime - sourceEnd;
-                    float absGap = math.abs(gap);
-                    if (absGap > DJAUTO_HIT_SWIPE_CHAIN_SEC) continue;
-                    if (swipe.ArrowCount <= 0 || swipe.Arrows == null) continue;
-                    var entryPos = new float2(swipe.Arrows[0].X, swipe.Arrows[0].Y);
-                    if (math.distance(sourcePos, entryPos) > DJAUTO_HIT_SWIPE_CHAIN_DISTANCE) continue;
-                    if (absGap < bestAbsGap)
-                    {
-                        bestAbsGap = absGap;
-                        bestIdx = i;
-                    }
-                }
-
-                if (bestIdx >= 0)
-                {
-                    hand.BindingSwipe = bestIdx;
-                }
-            }
-
-            private NextTarget GetBindingSwipeTarget(ref DJAutoHand hand)
-            {
-                var swipe = swipes[hand.BindingSwipe];
-                return new NextTarget
-                {
-                    Valid = true,
-                    Index = hand.BindingSwipe,
-                    Kind = 1,
-                    StartTime = swipe.StartTime,
-                    EndTime = swipe.EndTime,
-                    EntryPos = swipe.ArrowCount > 0
-                        ? new float2(swipe.Arrows[0].X, swipe.Arrows[0].Y)
-                        : float2.zero
-                };
+                float cost = 0f;
+                cost += DJAUTO_COST_POS * distSq;
+                cost += DJAUTO_COST_INERTIA * (p.StartTime - hand.ServeEnd);
+                cost += DJAUTO_COST_SWEEP * math.abs(hand.SweptAngle);
+                return cost;
             }
 
             /// <summary>渲染 + 触发：On 按当前 data 位置触发 sensor/按键并红手渲染，否则灰手。handSide 用于 wifi L/R 派生。</summary>
-            private void RenderAndTrigger(ref DJAutoHand hand, int handSide, float time)
+            private void RenderAndTrigger(int handIdx)
             {
-                if (hand.State == HandState.On && hand.CurIdx >= 0)
+                var hand = hands[handIdx];
+                if (hand.State is DJAutoHandState.On or DJAutoHandState.OnMovingToBoundNext)
                 {
-                    float st = GetStartTime(ref hand);
-                    var pos = CurrentDataPos(ref hand, handSide, time, out float radius);
-                    bool inTaskTime = time >= st;
-                    // 连按 On 移动中（time < next.StartTime）：沿 MoveFrom->MoveTo 插值，沿途触发 = 扫过
-                    if (!inTaskTime)
-                    {
-                        float t = math.saturate((time - hand.MoveStart) / math.max(hand.MoveEnd - hand.MoveStart, 1e-5f));
-                        pos = math.lerp(hand.MoveFrom, hand.MoveTo, t);
-                    }
-                    hand.Pos = pos;  // 跟踪当前 data 位置，供连按 MoveFrom
-                    InputData.HandleWorldPosInput(pos, radius);
+                    InputData.HandleWorldPosInput(hand.Pos, hand.Radius);
                 }
                 else
                 {
                     RenderHandOff(hand.Pos);
                 }
-            }
-
-            /// <summary>下一个目标候选（统一 hit/swipe）。</summary>
-            private struct NextTarget
-            {
-                public bool Valid;
-                public int Index;
-                public byte Kind;       // 0=hit 1=swipe
-                public float StartTime;
-                public float EndTime;
-                public float2 EntryPos;
-            }
-
-            /// <summary>
-            /// 从当前还未被手锁定的数据中选全局最早候选。同一 StartTime 再按将要认领它的手的距离决定。
-            /// 每个候选只在这里同时计算一次左右权重；忙手的权重为 -1。
-            /// </summary>
-            private NextTarget FindEarliestTarget(float time, out int side)
-            {
-                var best = new NextTarget();
-                side = 0;
-                float bestStart = float.MaxValue;
-                float bestDist = float.MaxValue;
-
-                for (int i = 0; i < hits.Length; i++)
-                {
-                    var hit = hits[i];
-                    // 该 hit 已绑定到某 swipe，将由 swipe 扩大半径顺带覆盖，不独立认领（让手去认领 swipe）
-                    if (hit.BoundSwipe >= 0) continue;
-                    if (IsClaimed(i, 0) ||
-                        time < hit.StartTime - DJAUTO_HAND_PREADVANCE_SEC ||
-                        time > hit.EndTime) continue;
-                    float2 entryPos = hit.Pos;
-                    int targetSide = SelectHand(entryPos, hit.StartTime, out float targetDist);
-                    if (targetSide == 0) continue;
-                    if (hit.StartTime < bestStart || (hit.StartTime == bestStart && targetDist < bestDist))
-                    {
-                        bestStart = hit.StartTime;
-                        bestDist = targetDist;
-                        side = targetSide;
-                        best = new NextTarget { Valid = true, Index = i, Kind = 0, StartTime = hit.StartTime, EndTime = hit.EndTime, EntryPos = entryPos };
-                    }
-                }
-
-                for (int i = 0; i < swipes.Length; i++)
-                {
-                    var swipe = swipes[i];
-                    // 普通 swipe 被任一手锁定后不可重领；wifi 允许另一只空闲手继续认领。
-                    if ((!swipe.IsWifi && IsClaimed(i, 1)) ||
-                        time < swipe.StartTime - DJAUTO_HAND_PREADVANCE_SEC ||
-                        SwipeReleased(swipe, time)) continue;
-                    float2 entryPos = swipe.ArrowCount > 0 ? new float2(swipe.Arrows[0].X, swipe.Arrows[0].Y) : float2.zero;
-                    int targetSide = SelectHand(entryPos, swipe.StartTime, out float targetDist);
-                    if (targetSide == 0) continue;
-                    // 同一时刻仍有 hit 时，先把空手分给 hit；否则预绑定的 wifi
-                    // 会作为共享 swipe 被另一只手抢走，挤掉同 timing 的另一颗 hit。
-                    if (swipe.StartTime < bestStart)
-                    {
-                        bestStart = swipe.StartTime;
-                        bestDist = targetDist;
-                        side = targetSide;
-                        best = new NextTarget { Valid = true, Index = i, Kind = 1, StartTime = swipe.StartTime, EndTime = swipe.EndTime, EntryPos = entryPos };
-                    }
-                }
-
-                return best;
-            }
-
-            private readonly bool IsClaimed(int index, byte kind)
-                => (_leftHand.CurIdx == index && _leftHand.CurKind == kind)
-                || (_rightHand.CurIdx == index && _rightHand.CurKind == kind)
-                || (kind == 1 && (_leftHand.BindingSwipe == index
-                    || _rightHand.BindingSwipe == index));
-
-            /// <summary>同时衡量左右手，空闲且可达才有权重；相等时稳定地优先右手。</summary>
-            private int SelectHand(float2 entryPos, float startTime, out float selectedDist)
-            {
-                float leftDist = math.distance(_leftHand.Pos, entryPos);
-                float rightDist = math.distance(_rightHand.Pos, entryPos);
-                float leftWeight = GetWeight(_leftHand, startTime, leftDist);
-                float rightWeight = GetWeight(_rightHand, startTime, rightDist);
-                if (leftWeight < 0f && rightWeight < 0f)
-                {
-                    selectedDist = 0f;
-                    return 0;
-                }
-                if (leftWeight > rightWeight)
-                {
-                    selectedDist = leftDist;
-                    return -1;
-                }
-                selectedDist = rightDist;
-                return +1;
-            }
-
-            /// <summary>
-            /// 已占用手不可参与本轮分配，直接返回 -1。
-            /// 手对目标的权重 = 角度(不绕优先,0.4) + 距离(近优先,0.4) + 时间(早优先,0.3)。
-            /// </summary>
-            private static float GetWeight(in DJAutoHand hand, float startTime, float dist)
-            {
-                var time = CurTime;
-                if (hand.CurIdx >= 0 || time < hand.FreeTime || !ReachableJob(hand.FreeTime, startTime, dist)) return -1f;
-                float w = 0f;
-
-                // 不绕的优先，手绕麻花越劲，note离你越远
-                w += 1f - math.pow(math.saturate(hand.Angle / math.PI2), 3) * 0.4f;
-
-                // 近的优先；dist=0 时为 1，dist=2*MajPos.MAIN_RADIUS 时为 0.4
-                w += 1f - math.pow(math.saturate(dist / (2f * MajPos.MAIN_RADIUS)), 3) * 0.4f;
-
-                // 早的优先；间隔=0 时为 1，间隔=2*DJAUTO_HAND_PREADVANCE_SEC 时为 0.3。
-                // saturate 防止 FreeTime=-inf(初始) 或大间隔时 (startTime-FreeTime) 溢出 +inf 把权重打成 -inf，
-                // 否则 SelectHand 的 <0 判定会把两手都误判不可用 -> FindNext 不分配 -> 手停在初始位
-                w += 1f - math.pow(math.saturate((startTime - hand.FreeTime) / (2f * DJAUTO_HAND_PREADVANCE_SEC)), 3) * 0.3f;
-                return w;
-            }
-
-            /// <summary>手在 freeTime 空闲，需 PREADVANCE 提前量；位移时间 = dist/MAX_SPEED，超可用时间则不可达。</summary>
-            private static bool ReachableJob(float freeTime, float startTime, float dist)
-            {
-                float moveStart = math.max(freeTime, startTime - DJAUTO_HAND_PREADVANCE_SEC);
-                float avail = startTime - moveStart;
-                return avail > 0f && dist <= avail * DJAUTO_HAND_MAX_SPEED;
-            }
-
-            private void SetCur(ref DJAutoHand hand, in NextTarget next)
-            {
-                hand.CurIdx = next.Index;
-                hand.CurKind = next.Kind;
-            }
-
-            private float GetStartTime(ref DJAutoHand hand)
-                => hand.CurKind == 0 ? hits[hand.CurIdx].StartTime : swipes[hand.CurIdx].StartTime;
-            private float GetEndTime(ref DJAutoHand hand)
-                => hand.CurKind == 0 ? hits[hand.CurIdx].EndTime : swipes[hand.CurIdx].EndTime;
-
-            /// <summary>swipe 是否已到放手时机：镜像 SlideUpdateJob 动态放手（isEnd/isSlideEnd 或 已判定+延迟），用于 On 结束与窗口上界。</summary>
-            private static bool SwipeReleased(DJAutoSwipeData swipe, float time)
-            {
-                var slide = swipe.BindingSlide;
-                return slide->isEnd || slide->isSlideEnd || (slide->isJudged && time > slide->judgeTime + DJAUTO_SLIDE_RELEASE_DELAY_SEC);
-            }
-            private float2 GetEntryPos(ref DJAutoHand hand)
-            {
-                if (hand.CurKind == 0)
-                {
-                    var hit = hits[hand.CurIdx];
-                    return hit.Pos;
-                }
-                var swipe = swipes[hand.CurIdx];
-                return swipe.ArrowCount > 0 ? new float2(swipe.Arrows[0].X, swipe.Arrows[0].Y) : float2.zero;
-            }
-
-            /// <summary>按 CurKind 算当前目标位置 + 半径。wifi side 由 handSide（左=-1，右=+1）派生。</summary>
-            private float2 CurrentDataPos(ref DJAutoHand hand, int handSide, float time, out float radius)
-            {
-                if (hand.CurKind == 0)
-                {
-                    var hit = hits[hand.CurIdx];
-                    radius = hit.Radius;
-                    return hit.Pos;
-                }
-                var swipe = swipes[hand.CurIdx];
-                radius = swipe.Radius;
-                if (swipe.IsWifi)
-                {
-                    return WifiSwipePos(swipe, time, handSide);
-                }
-                return ComputeSwipePos(swipe, time);
-            }
-
-            /// <summary>
-            /// 沿 swipe.Arrows 做弧长参数化插值，镜像 SlideUpdateJob 的非 wifi 星星位置算法。
-            /// wifi 时此为基础位置（C 支），WifiSwipePos 再绕起点 ±11.25° 派生 L/R。
-            /// </summary>
-            private static float2 ComputeSwipePos(DJAutoSwipeData swipe, float time)
-                => ComputeSwipePosAt(swipe.Arrows, swipe.ArrowCount, swipe.StartTime, swipe.EndTime, time, swipe.BindSkippableCNearestTime);
-
-            /// <summary>wifi 双手：基础位置(C 支)相对起点偏移绕起点旋转 ±11.25°（L/R 支与 C 支中间）。side=-1 L, +1 R。</summary>
-            private static float2 WifiSwipePos(DJAutoSwipeData swipe, float time, int side)
-            {
-                var posC = ComputeSwipePos(swipe, time);
-                var arrows = swipe.Arrows;
-                var startPos = new float2(arrows[0].X, arrows[0].Y);
-                var offset = posC - startPos;
-                var rad = math.radians(11.25f);
-                var cos = math.cos(rad);
-                var sin = math.sin(rad);
-                return startPos + new float2(
-                    offset.x * cos - side * offset.y * sin,
-                    side * offset.x * sin + offset.y * cos);
             }
 
             /// <summary>Off/Moving 渲染灰色手圆（不触发 sensor）。</summary>
@@ -1086,19 +949,6 @@ namespace MajdataViewX.Managers
                     pos = pos,
                     radius = DJAUTO_HAND_RADIUS,
                     color = new float4(0.6f, 0.6f, 0.6f, 0.5f)
-                };
-            }
-
-            /// <summary>On 状态红手渲染（外键 hit 走 HandleButtonInput 不触发 sensor，单独渲染红手圆）。</summary>
-            private static void RenderHandOn(float2 pos, float radius)
-            {
-                if (!InputData.ShowHand) return;
-                var idx = Interlocked.Increment(ref *InputData.HitWriteCountPtr) - 1;
-                InputData.hitRender[idx] = new HitRenderData
-                {
-                    pos = pos,
-                    radius = radius,
-                    color = new float4(1f, 0f, 0f, 0.75f)
                 };
             }
         }

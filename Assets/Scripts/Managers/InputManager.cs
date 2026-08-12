@@ -162,7 +162,7 @@ namespace MajdataViewX.Managers
 
 
         // LastActiveDown/ActiveDown 的滚动改在 OnLateUpdate 帧末完成：
-        // 本帧由用户输入（Handle*）+ HitSwipeUpdateJob（DJAuto）共同累积 ActiveDown，
+        // 本帧由用户输入（Handle*）+ PlayUpdateJob（DJAuto）共同累积 ActiveDown，
         // 供 note 判定 Job 读取边沿；帧末 OnLateUpdate 把 ActiveDown 归零、转入 LastActiveDown。
 
         /// <summary>
@@ -182,7 +182,7 @@ namespace MajdataViewX.Managers
             {
                 var combinedR = radius + MajPos.GetSensorRadius((SensorType)i);
                 var combinedSq = combinedR * combinedR;
-                ref readonly var sp = ref SensorWorldPositions.ElementRef(i);
+                var sp = SensorWorldPositions[i];
                 var dx = pos.x - sp.x;
                 var dy = pos.y - sp.y;
                 var distSq = dx * dx + dy * dy;
@@ -255,7 +255,7 @@ namespace MajdataViewX.Managers
             }
 
 
-            // 帧末滚动：本帧 ActiveDown（用户输入 + HitSwipeUpdateJob 累积）转为下帧 LastActiveDown，
+            // 帧末滚动：本帧 ActiveDown（用户输入 + PlayUpdateJob 累积）转为下帧 LastActiveDown，
             // ActiveDown 归零供下帧重新累积。note 判定 Job 在本帧已读完边沿，此处归零安全。
             for (int i = 0; i < BUTTON_COUNT; i++)
             {

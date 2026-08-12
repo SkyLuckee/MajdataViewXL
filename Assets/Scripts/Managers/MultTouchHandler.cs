@@ -81,7 +81,7 @@ namespace MajdataViewX.Managers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public readonly bool CanShowBorder(SensorType area, out bool isThree, out NoteSp sprite)
         {
-            ref readonly var span = ref _spans.ElementRef((int)area);
+            var span = _spans[(int)area];
             var diff = _activeCounts[(int)area];
             if (diff <= 1)
             {

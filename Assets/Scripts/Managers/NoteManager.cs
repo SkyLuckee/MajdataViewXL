@@ -35,9 +35,7 @@ namespace MajdataViewX.Managers
         NativeList<TouchData> touches = new(1024, Allocator.Persistent);
         NativeList<TouchHoldData> touchHolds = new(1024, Allocator.Persistent);
 
-        NativeList<DJAutoHitData> hits = new(1024, Allocator.Persistent);
-        NativeList<DJAutoSwipeData> swipes = new(1024, Allocator.Persistent);
-        NativeArray<DJAutoHand> _djAutoHands = new(2, Allocator.Persistent);
+        NativeList<DJAutoPlayData> plays = new(2048, Allocator.Persistent);
 
         [SerializeField]
         AnimationCurve DJAutoMoveCurve;
@@ -181,7 +179,7 @@ namespace MajdataViewX.Managers
         {
             _prevChain.Complete();
             // hitSwipeGroup 必须在 BeginHandler 之前锁定并设好 hitRender/HitWriteCountPtr：
-            // 用户输入（BeginHandler 内）与 HitSwipeUpdateJob 都直接写这两个指针。
+            // 用户输入（BeginHandler 内）与 PlayUpdateJob 都直接写这两个指针。
             _isHitSwipeGroupLockedThisFrame = MajBurst.InputData.ShowHand;
             if (_isHitSwipeGroupLockedThisFrame)
             {
@@ -246,14 +244,13 @@ namespace MajdataViewX.Managers
 
                 JobHandle h = default;
 
-                if (hits.Length > 0 || swipes.Length > 0)
+                if (plays.Length > 0)
                 {
-                    h = new HitSwipeUpdateJob
+                    h = new PlayUpdateJob
                     {
                         _djAutoMoveCurve = _djAutoMoveCurve,
+                        plays = plays.AsArray(),
                         hands = _djAutoHands,
-                        hits = hits.AsArray(),
-                        swipes = swipes.AsArray(),
                     }.Schedule(h);
                 }
 
@@ -418,16 +415,18 @@ namespace MajdataViewX.Managers
             if (slides.IsCreated) slides.Dispose();
             if (touches.IsCreated) touches.Dispose();
             if (touchHolds.IsCreated) touchHolds.Dispose();
-            if (swipes.IsCreated) swipes.Dispose();
-            if (hits.IsCreated) hits.Dispose();
+            if (plays.IsCreated) plays.Dispose();
             if (_djAutoHands.IsCreated) _djAutoHands.Dispose();
-            if (_djAutoTouchHitsThisTiming.IsCreated) _djAutoTouchHitsThisTiming.Dispose();
+            if (_djAutoTouchInfosThisTiming.IsCreated) _djAutoTouchInfosThisTiming.Dispose();
             if (_djAutoMoveCurve.IsCreated) _djAutoMoveCurve.Dispose();
 
             if (touchGroupTotalCounts.IsCreated) touchGroupTotalCounts.Dispose();
             if (touchGroupJudgedCounts.IsCreated) touchGroupJudgedCounts.Dispose();
             if (touchHoldGroupTotalCounts.IsCreated) touchHoldGroupTotalCounts.Dispose();
             if (touchHoldGroupPressedCounts.IsCreated) touchHoldGroupPressedCounts.Dispose();
+
+            if (_leftHandPlays.IsCreated) _leftHandPlays.Dispose();
+            if (_rightHandPlays.IsCreated) _rightHandPlays.Dispose();
         }
 
         public void ResetState()
@@ -439,9 +438,8 @@ namespace MajdataViewX.Managers
             slides.Clear();
             touches.Clear();
             touchHolds.Clear();
-            hits.Clear();
-            _djAutoTouchHitsThisTiming.Clear();
-            swipes.Clear();
+            plays.Clear();
+            _djAutoTouchInfosThisTiming.Clear();
             ResetDJAutoHands();
 
             touchGroupTotalCounts.Clear();
@@ -458,6 +456,9 @@ namespace MajdataViewX.Managers
                 slidePosePool = null;
             }
             MajBurst.MultTouchHandler.Clear();
+
+            if (_leftHandPlays.IsCreated) _leftHandPlays.Dispose();
+            if (_rightHandPlays.IsCreated) _rightHandPlays.Dispose();
         }
     }
 }

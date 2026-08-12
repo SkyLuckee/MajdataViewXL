@@ -658,7 +658,7 @@ namespace MajdataViewX.Notes.Updaters
 
         private void RenderSlideOK(ref SlideData slide)
         {
-            ref readonly var ok = ref slide.okPose;
+            var ok = slide.okPose;
 
             var baseJ = slide.okType switch
             {

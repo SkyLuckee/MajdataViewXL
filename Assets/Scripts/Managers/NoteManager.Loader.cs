@@ -59,9 +59,8 @@ namespace MajdataViewX.Managers
             slides.Clear();
             touches.Clear();
             touchHolds.Clear();
-            hits.Clear();
-            _djAutoTouchHitsThisTiming.Clear();
-            swipes.Clear();
+            plays.Clear();
+            _djAutoTouchInfosThisTiming.Clear();
             touchGroupTotalCounts.Clear();
             touchGroupJudgedCounts.Clear();
             touchHoldGroupTotalCounts.Clear();
@@ -115,12 +114,6 @@ namespace MajdataViewX.Managers
                 slide.judgeQueueR = slideAreaPool + slide.judgeQueueROffset;
                 slide.slideArrows = slidePosePool + slide.slideArrowsOffset;
             }
-            for (var i = 0; i < swipes.Length; i++)
-            {
-                ref var swipe = ref swipes.ElementRef(i);
-                if (swipe.ArrowCount > 0)   // wifi (ArrowCount==0) 用内联端点，不回填 Arrows
-                    swipe.Arrows = slidePosePool + swipe.ArrowsOffset;
-            }
 
             var cur1 = 0;
             foreach (var areas in loadedSlideAreaArrays)
@@ -151,8 +144,9 @@ namespace MajdataViewX.Managers
             loadedSlideAreaArrays.Clear();
             loadedSlidePoseArrays.Clear();
 
-            // hit/swipe 已全部 emit 且 Arrows 已回填：标记可被 swipe 顺带覆盖的 hit（设 BoundSwipe + ExpandedRadius）
+            plays.Sort(new DJAutoPlayStartTimeComparer());
             BindSkippableHitsBySwipe();
+            BindPlayPatterns();
 
             MajBurst.MultTouchHandler.Load(loadedTouches);
         }
@@ -559,7 +553,7 @@ namespace MajdataViewX.Managers
                 switch (NoteHelper.AutoPlayMode)
                 {
                     case AutoPlayMode.DJAutoButton:
-                        hits.Add(new DJAutoHitData(
+                        plays.Add(new DJAutoPlayData(
                             MajPos.RingPos(DJAUTO_BTN_DEFAULT_RADIUS, (int)tap.Key + 1, false),
                             DJAUTO_HAND_RADIUS,
                             tap.Time,
@@ -567,7 +561,7 @@ namespace MajdataViewX.Managers
                             -2));
                         break;
                     case AutoPlayMode.DJAutoSensor:
-                        hits.Add(new DJAutoHitData(
+                        plays.Add(new DJAutoPlayData(
                             MajPos.GetSensorJudgePos(tap.Key),
                             DJAUTO_HAND_RADIUS,
                             tap.Time,
@@ -613,7 +607,7 @@ namespace MajdataViewX.Managers
                 switch (NoteHelper.AutoPlayMode)
                 {
                     case AutoPlayMode.DJAutoButton:
-                        hits.Add(new DJAutoHitData(
+                        plays.Add(new DJAutoPlayData(
                             MajPos.RingPos(DJAUTO_BTN_DEFAULT_RADIUS, (int)hold.Key + 1, false),
                             DJAUTO_HAND_RADIUS,
                             hold.time,
@@ -621,7 +615,7 @@ namespace MajdataViewX.Managers
                             -2));
                         break;
                     case AutoPlayMode.DJAutoSensor:
-                        hits.Add(new DJAutoHitData(
+                        plays.Add(new DJAutoPlayData(
                             MajPos.GetSensorJudgePos(hold.Key),
                             DJAUTO_HAND_RADIUS,
                             hold.time,
@@ -670,10 +664,12 @@ namespace MajdataViewX.Managers
 
             if (!note.IsMine &&
                 NoteHelper.AutoPlayMode is AutoPlayMode.DJAutoButton or AutoPlayMode.DJAutoSensor)
-                _djAutoTouchHitsThisTiming.Add(new DJAutoNoteRef
+                _djAutoTouchInfosThisTiming.Add(new DJAutoTouchInfo
                 {
-                    Index = touches.Length - 1,
-                    Type = SimaiNoteType.Touch,
+                    Sensor = touch.sensor,
+                    Pos = touch.centerPos,
+                    StartTime = touch.time,
+                    EndTime = touch.time + DJAUTO_TOUCH_RELEASE_TIME_SEC,
                 });
         }
 
@@ -711,10 +707,12 @@ namespace MajdataViewX.Managers
 
             if (!note.IsMine &&
                 NoteHelper.AutoPlayMode is AutoPlayMode.DJAutoButton or AutoPlayMode.DJAutoSensor)
-                _djAutoTouchHitsThisTiming.Add(new DJAutoNoteRef
+                _djAutoTouchInfosThisTiming.Add(new DJAutoTouchInfo
                 {
-                    Index = touchHolds.Length - 1,
-                    Type = SimaiNoteType.TouchHold,
+                    Sensor = th.sensor,
+                    Pos = th.centerPos,
+                    StartTime = th.time,
+                    EndTime = th.time + th.LastFor + DJAUTO_TOUCHHOLD_RELEASE_TIME_SEC,
                 });
         }
 
@@ -763,7 +761,7 @@ namespace MajdataViewX.Managers
                     switch (NoteHelper.AutoPlayMode)
                     {
                         case AutoPlayMode.DJAutoButton:
-                            hits.Add(new DJAutoHitData(
+                            plays.Add(new DJAutoPlayData(
                                 MajPos.RingPos(DJAUTO_BTN_DEFAULT_RADIUS, (int)starTap.Key + 1, false),
                                 DJAUTO_HAND_RADIUS,
                                 starTap.Time,
@@ -771,7 +769,7 @@ namespace MajdataViewX.Managers
                                 -2));
                             break;
                         case AutoPlayMode.DJAutoSensor:
-                            hits.Add(new DJAutoHitData(
+                            plays.Add(new DJAutoPlayData(
                                 MajPos.GetSensorJudgePos(starTap.Key),
                                 DJAUTO_HAND_RADIUS,
                                 starTap.Time,
@@ -840,12 +838,10 @@ namespace MajdataViewX.Managers
                     sameSlideCount == 1) // slide跟别人一样就不用鸟
                     unsafe
                     {
-                        swipes.Add(new DJAutoSwipeData(
-                            slide.slideArrowsOffset,
-                            slide.slideArrowsCount,
+                        plays.Add(new DJAutoPlayData(
+                            slides.GetUnsafeReadOnlyPtr() + slides.Length - 1,
                             DJAUTO_WIFI_RADIUS,
                             slide.shootTime,
-                            slides.GetUnsafeReadOnlyPtr() + slides.Length - 1,
                             slide.shootTime + slide.LastFor,
                             true));
                     }
@@ -925,12 +921,10 @@ namespace MajdataViewX.Managers
                     sameSlideCount == 1) // slide跟别人一样就不用鸟
                     unsafe
                     {
-                        swipes.Add(new DJAutoSwipeData(
-                            slide.slideArrowsOffset,
-                            slide.slideArrowsCount,
+                        plays.Add(new DJAutoPlayData(
+                            slides.GetUnsafeReadOnlyPtr() + slides.Length - 1,
                             DJAUTO_HAND_RADIUS,
                             slide.shootTime,
-                            slides.GetUnsafeReadOnlyPtr() + slides.Length - 1,
                             slide.shootTime + slide.LastFor,
                             false));
                     }

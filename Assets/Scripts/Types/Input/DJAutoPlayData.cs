@@ -37,12 +37,23 @@ namespace MajdataViewX.Types.Input
             get => (_flag & 0b_0000_0001) != 0;
             private init => _flag = (byte)((_flag & ~0b_0000_0001) | (value ? 0b_0000_0001 : 0));
         }
-
-        /// <summary>占用标记：FindNext 认领的散点 play 或被 BindPlayOffset 指向的绑定后继均置此位，FindNext 跳过；执行完随 default 清除。</summary>
+        /// <summary>
+        /// 1. FindNext 认领的散点 play 或被 BindPlayOffset 指向的绑定后继均置此位，FindNext 跳过；
+        /// 2. 执行完随 default 清除。
+        /// 3. IsAllowSkipBySwipe == true时，能被星星蹭掉
+        /// </summary>
         public bool IsReserved
         {
-            get => (_flag & 0b_0000_0010) != 0;
+            readonly get => (_flag & 0b_0000_0010) != 0;
             set => _flag = (byte)((_flag & ~0b_0000_0010) | (value ? 0b_0000_0010 : 0));
+        }
+        /// <summary>
+        /// 是否允许被 swipe 顺带覆盖（tap/hold）
+        /// </summary>
+        public readonly bool IsAllowSkipBySwipe
+        {
+            get => (_flag & 0b_0000_0100) != 0;
+            private init => _flag = (byte)((_flag & ~0b_0000_0100) | (value ? 0b_0000_0100 : 0));
         }
 
         /// <summary>
@@ -79,12 +90,13 @@ namespace MajdataViewX.Types.Input
         /// </summary>
         [FieldOffset(20)]
         public float EndTime;
+
         /// <summary>
-        /// -2=不允许被 swipe 顺带覆盖（tap/hold 恒为 -2）；-1=允许但未找到匹配 swipe；>=0=绑定的 swipe 索引。
-        /// 绑定后该 hit 由 swipe 执行时扩大半径顺带覆盖，FindEarliestTarget 不再独立认领它。
+        /// 当这是一个slide头（star tap）时，它的slide部分的swipe
         /// </summary>
         [FieldOffset(24)]
-        public int BindSwipe;
+        public int SlideSwipe;
+
 
 
 
@@ -96,7 +108,11 @@ namespace MajdataViewX.Types.Input
         [FieldOffset(4)]
         public float SkipCTime;
 
-        // 5~8 bytes padding
+        /// <summary>wifi 双手偏移方向：+1 = +11.25°，-1 = -11.25°。由 play 自带而非 handIdx 决定，避免强制左绑左右绑右。</summary>
+        [FieldOffset(5)]
+        public readonly sbyte WifiSide;
+
+        // 6~8 bytes padding
 
         // 前面同定义
         //[FieldOffset(12)]
@@ -120,7 +136,7 @@ namespace MajdataViewX.Types.Input
         public DJAutoPlayData(
             float2 pos, float radius,
             float startTime, float endTime,
-            int boundSwipe)
+            bool isAllowSkipBySwipe)
         {
             this = default;
             Type = DJAutoPlayType.Hit;
@@ -128,7 +144,7 @@ namespace MajdataViewX.Types.Input
             Radius = radius;
             StartTime = startTime;
             EndTime = endTime;
-            BindSwipe = boundSwipe;
+            IsAllowSkipBySwipe = isAllowSkipBySwipe;
         }
 
         /// <summary>
@@ -137,7 +153,7 @@ namespace MajdataViewX.Types.Input
         public DJAutoPlayData(
             SlideData* bindingSlide,
             float radius, float startTime, float endTime,
-            bool isWifi)
+            bool isWifi, sbyte wifiSide = -1)
         {
             this = default;
             Type = DJAutoPlayType.Swipe;
@@ -146,6 +162,7 @@ namespace MajdataViewX.Types.Input
             StartTime = startTime;
             EndTime = endTime;
             IsWifi = isWifi;
+            WifiSide = wifiSide;
         }
 
 
@@ -193,7 +210,25 @@ namespace MajdataViewX.Types.Input
                 return float2.zero;
         }
 
-        public float2 GetCurPos(float time, int side)
+        /// <summary>FindNext 分配参考点：非 wifi 返回入口；wifi 返回偏移后中点，以区分 side 归属--哪只手离某 side 中点近就拿该 side。</summary>
+        public readonly float2 GetAssignPos()
+        {
+            if (Type is not DJAutoPlayType.Swipe || !IsWifi) return GetEntryPos();
+            var arrows = BindSlide->slideArrows;
+            var count = BindSlide->slideArrowsCount;
+            var startPos = new float2(arrows[0].X, arrows[0].Y);
+            var midPos = new float2(arrows[(int)(count * 0.5)].X, arrows[(int)(count * 0.5)].Y);
+            var offset = midPos - startPos;
+            var rad = math.radians(11.25f);
+            var cos = math.cos(rad);
+            var sin = math.sin(rad);
+            var side = WifiSide;
+            return startPos + new float2(
+                offset.x * cos - side * offset.y * sin,
+                side * offset.x * sin + offset.y * cos);
+        }
+
+        public float2 GetCurPos(float time)
         {
             if (Type is not DJAutoPlayType.Swipe) return Pos;
             var arrows = BindSlide->slideArrows;
@@ -222,6 +257,7 @@ namespace MajdataViewX.Types.Input
             }
             if (IsWifi)
             {
+                var side = WifiSide;
                 var posC = pos;
                 var startPos = new float2(arrows[0].X, arrows[0].Y);
                 var offset = posC - startPos;

@@ -558,7 +558,7 @@ namespace MajdataViewX.Managers
                             DJAUTO_HAND_RADIUS,
                             tap.Time,
                             tap.Time + DJAUTO_TAP_RELEASE_TIME_SEC,
-                            -2));
+                            false));
                         break;
                     case AutoPlayMode.DJAutoSensor:
                         plays.Add(new DJAutoPlayData(
@@ -566,7 +566,7 @@ namespace MajdataViewX.Managers
                             DJAUTO_HAND_RADIUS,
                             tap.Time,
                             tap.Time + DJAUTO_TAP_RELEASE_TIME_SEC,
-                            -2));
+                            false));
                         break;
                 }
         }
@@ -612,7 +612,7 @@ namespace MajdataViewX.Managers
                             DJAUTO_HAND_RADIUS,
                             hold.time,
                             hold.time + hold.LastFor + DJAUTO_HOLD_RELEASE_TIME_SEC,
-                            -2));
+                            false));
                         break;
                     case AutoPlayMode.DJAutoSensor:
                         plays.Add(new DJAutoPlayData(
@@ -620,7 +620,7 @@ namespace MajdataViewX.Managers
                             DJAUTO_HAND_RADIUS,
                             hold.time,
                             hold.time + hold.LastFor + DJAUTO_HOLD_RELEASE_TIME_SEC,
-                            -2));
+                            false));
                         break;
                 }
         }
@@ -766,7 +766,7 @@ namespace MajdataViewX.Managers
                                 DJAUTO_HAND_RADIUS,
                                 starTap.Time,
                                 starTap.Time + DJAUTO_TAP_RELEASE_TIME_SEC,
-                                -2));
+                                false));
                             break;
                         case AutoPlayMode.DJAutoSensor:
                             plays.Add(new DJAutoPlayData(
@@ -774,7 +774,7 @@ namespace MajdataViewX.Managers
                                 DJAUTO_HAND_RADIUS,
                                 starTap.Time,
                                 starTap.Time + DJAUTO_TAP_RELEASE_TIME_SEC,
-                                -2));
+                                false));
                             break;
                     }
             }
@@ -838,12 +838,22 @@ namespace MajdataViewX.Managers
                     sameSlideCount == 1) // slide跟别人一样就不用鸟
                     unsafe
                     {
+                        // wifi 双手：发射两个 play(side -1/+1)，FindNext 按偏移后中点就近分配，无强制左绑左右绑右
+                        var slidePtr = slides.GetUnsafeReadOnlyPtr() + slides.Length - 1;
                         plays.Add(new DJAutoPlayData(
-                            slides.GetUnsafeReadOnlyPtr() + slides.Length - 1,
+                            slidePtr,
                             DJAUTO_WIFI_RADIUS,
                             slide.shootTime,
                             slide.shootTime + slide.LastFor,
-                            true));
+                            isWifi: true,
+                            wifiSide: -1));
+                        plays.Add(new DJAutoPlayData(
+                            slidePtr,
+                            DJAUTO_WIFI_RADIUS,
+                            slide.shootTime,
+                            slide.shootTime + slide.LastFor,
+                            isWifi: true,
+                            wifiSide: +1));
                     }
 
                 areaPoolIndex += judgeQueueCount + judgeQueueLCount + judgeQueueRCount;

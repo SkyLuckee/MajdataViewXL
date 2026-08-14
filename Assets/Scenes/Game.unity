@@ -1474,7 +1474,7 @@ GameObject:
   - component: {fileID: 327139455}
   - component: {fileID: 327139456}
   m_Layer: 0
-  m_Name: Notes
+  m_Name: AllPerfectManager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2684,26 +2684,13 @@ GameObject:
   - component: {fileID: 483431727}
   - component: {fileID: 483431726}
   - component: {fileID: 483431725}
-  - component: {fileID: 483431724}
   m_Layer: 5
-  m_Name: Button
+  m_Name: BtnToggleFullScreen
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &483431724
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 483431723}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 706f87a89456f3342971fe2c6dbc2ce1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!114 &483431725
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2748,8 +2735,8 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 483431724}
-        m_TargetAssemblyTypeName: ToggleFullScreen, Assembly-CSharp
+      - m_Target: {fileID: 1208312102}
+        m_TargetAssemblyTypeName: MajdataViewX.Managers.ButtonsManager, Assembly-CSharp
         m_MethodName: ToggleFullscreen
         m_Mode: 1
         m_Arguments:
@@ -3169,7 +3156,7 @@ GameObject:
   - component: {fileID: 569942663}
   - component: {fileID: 569942662}
   m_Layer: 5
-  m_Name: ResoDropdown
+  m_Name: DDResolution
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -3263,8 +3250,8 @@ MonoBehaviour:
   m_OnValueChanged:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 483431724}
-        m_TargetAssemblyTypeName: ToggleFullScreen, Assembly-CSharp
+      - m_Target: {fileID: 1208312102}
+        m_TargetAssemblyTypeName: MajdataViewX.Managers.ButtonsManager, Assembly-CSharp
         m_MethodName: SetResolution
         m_Mode: 1
         m_Arguments:
@@ -6607,6 +6594,7 @@ GameObject:
   - component: {fileID: 1208312100}
   - component: {fileID: 1208312099}
   - component: {fileID: 1208312098}
+  - component: {fileID: 1208312102}
   m_Layer: 5
   m_Name: CanvasButtons
   m_TagString: Untagged
@@ -6699,6 +6687,19 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0, y: 0}
+--- !u!114 &1208312102
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1208312097}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 706f87a89456f3342971fe2c6dbc2ce1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  DDResolution: {fileID: 569942662}
 --- !u!1 &1245744161
 GameObject:
   m_ObjectHideFlags: 0
@@ -10600,7 +10601,7 @@ GameObject:
   - component: {fileID: 2015046462}
   - component: {fileID: 2015046461}
   m_Layer: 5
-  m_Name: Button (2)
+  m_Name: BtnShowResolution
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -10669,8 +10670,8 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 483431724}
-        m_TargetAssemblyTypeName: ToggleFullScreen, Assembly-CSharp
+      - m_Target: {fileID: 1208312102}
+        m_TargetAssemblyTypeName: MajdataViewX.Managers.ButtonsManager, Assembly-CSharp
         m_MethodName: DisplayDropdown
         m_Mode: 1
         m_Arguments:

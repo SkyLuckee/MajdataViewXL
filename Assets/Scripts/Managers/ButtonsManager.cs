@@ -2,16 +2,17 @@
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
-namespace MajdataViewX.UI
-{
-    public class ToggleFullScreen : MonoBehaviour
-    {
-        private Dropdown dd;
 
-        public void Start()
+namespace MajdataViewX.Managers
+{
+    public class ButtonsManager : MonoBehaviour
+    {
+        [SerializeField]
+        private Dropdown DDResolution;
+
+        private void Start()
         {
-            dd = GameObject.Find("ResoDropdown").GetComponent<Dropdown>();
-            dd.gameObject.SetActive(false);
+            DDResolution.gameObject.SetActive(false);
         }
 
         private void Update()
@@ -22,18 +23,17 @@ namespace MajdataViewX.UI
 
         public void ToggleFullscreen()
         {
-            print("ToggleFullScreen");
+            Debug.Log("ToggleFullScreen");
             var resolutions = Screen.resolutions;
             if (Screen.fullScreen)
             {
-                var width = 300;
-                var height = 300;
+                var width = 512;
+                var height = 512;
                 Screen.SetResolution(width, height, false);
             }
             else
             {
-                Screen.SetResolution(resolutions[resolutions.Length - 1].width, resolutions[resolutions.Length - 1].height,
-                    true);
+                Screen.SetResolution(resolutions[resolutions.Length - 1].width, resolutions[resolutions.Length - 1].height, true);
             }
 
             Screen.fullScreenMode = FullScreenMode.FullScreenWindow;
@@ -41,14 +41,14 @@ namespace MajdataViewX.UI
 
         public void DisplayDropdown()
         {
-            dd.value = 999;
-            dd.gameObject.SetActive(true);
+            DDResolution.value = 999;
+            DDResolution.gameObject.SetActive(true);
         }
 
         public void SetResolution()
         {
-            var i = dd.value;
-            print(i);
+            var i = DDResolution.value;
+            Debug.Log(i);
             switch (i)
             {
                 case 0:
@@ -71,7 +71,7 @@ namespace MajdataViewX.UI
                     break;
             }
 
-            dd.gameObject.SetActive(false);
+            DDResolution.gameObject.SetActive(false);
         }
     }
 }

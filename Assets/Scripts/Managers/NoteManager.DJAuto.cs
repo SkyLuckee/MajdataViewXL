@@ -64,7 +64,7 @@ namespace MajdataViewX.Managers
 
         // ===== CombineTouchThisTiming 覆盖圆计算系数 =====
         /// <summary>长 touchhold 重算手位的间隔阈值：相邻 endtime gap >= 此值则断开新段、重新算圆。</summary>
-        private const float TOUCH_HIT_RESIZE_HAND_THRESHOLD = 100f * MajCtx.FRAME_LENGTH_SEC;
+        private const float TOUCH_HIT_RESIZE_HAND_THRESHOLD = 10f * MajCtx.FRAME_LENGTH_SEC;
         /// <summary>一组touch(hold)中，当存在end time大于start+此值的项时，重算一次手位。之后的重算有所不同</summary>
         private const float TOUCH_HIT_SHORT_SPLIT_THRESHOLD = 5f * MajCtx.FRAME_LENGTH_SEC + (float)MajGeo.Epsilon;
         /// <summary>双圆枚举的 3 点最小覆盖圆候选仅在 n ≤ 此值时启用。大 n 降级为 1/2 点候选以保全性能。</summary>
@@ -93,11 +93,9 @@ namespace MajdataViewX.Managers
         /// <summary>位置代价:手到目标入口距离² × 此系数。</summary>
         private const float DJAUTO_COST_POS = 1f;
         /// <summary>惯性代价:(play.StartTime - hand.ServeEnd) × 此系数，刚释放的手续接更优。</summary>
-        private const float DJAUTO_COST_INERTIA = 8f;
-        /// <summary>绕角惩罚:累积 |SweptAngle| × 此系数。</summary>
-        private const float DJAUTO_COST_SWEEP = 1.5f;
+        private const float DJAUTO_COST_TIME = 8f;
         /// <summary>时间可达硬约束的迟到容差:允许手在 StartTime 之后这么多秒内仍认领。</summary>
-        private const float DJAUTO_COST_REACH_TOL = 0.05f;
+        private const float DJAUTO_REACH_TOL = 0.2222f;
 
 
         /// <summary>
@@ -774,8 +772,6 @@ namespace MajdataViewX.Managers
             public float2 MoveFrom;
             public float2 MoveTo;
 
-            public float SweptAngle;      //当前相对原始方向的角度（弧度）
-
             public float ServeEnd;
         }
 
@@ -858,10 +854,6 @@ namespace MajdataViewX.Managers
                                 hand.State = DJAutoHandState.On;
                                 hand.Pos = hand.Current.GetEntryPos();
                             }
-                            hand.SweptAngle += math.atan2(
-                                pos1.x * pos2.y - pos1.y * pos2.x,
-                                math.dot(pos1, pos2)
-                            );
                             break;
                         }
                     case DJAutoHandState.Off:
@@ -889,11 +881,6 @@ namespace MajdataViewX.Managers
                                 hand.Pos = hand.Current.GetEntryPos();
                                 hand.ServeEnd = hand.Current.EndTime;
                             }
-
-                            hand.SweptAngle += math.atan2(
-                                pos1.x * pos2.y - pos1.y * pos2.x,
-                                math.dot(pos1, pos2)
-                            );
                             break;
                         }
                 }
@@ -914,7 +901,7 @@ namespace MajdataViewX.Managers
                         var p = plays[i];
                         if (p.Type is DJAutoPlayType.NoneOrFinished) continue;
                         if (p.IsReserved) continue;            // 已认领或绑定后继，跳过
-                        if (time > p.EndTime) continue;
+                        if (time > p.EndTime + DJAUTO_REACH_TOL) continue;
 
                         bool anyReachable = false;
                         for (int h = 0; h < 2; h++)
@@ -953,14 +940,13 @@ namespace MajdataViewX.Managers
             /// <summary>空闲手认领候选 p 的 cost(越小越优)：位置就近 + 惯性(刚释放优先) + 交叉惩罚 + 绕角惩罚；硬约束为时间可达。</summary>
             private readonly float ComputeHandCost(DJAutoHand hand, DJAutoPlayData p, float time)
             {
-                var entryDistSq = math.distancesq(hand.Pos, p.GetEntryPos());
-                float reachWindow = (p.StartTime + DJAUTO_COST_REACH_TOL - time) * DJAUTO_HAND_MAX_SPEED;
-                if (reachWindow < 0f || entryDistSq > reachWindow * reachWindow) return float.MaxValue;
+                //var entryDistSq = math.distancesq(hand.Pos, p.GetEntryPos());
+                //float reachWindow = (p.StartTime + DJAUTO_REACH_TOL - time) * DJAUTO_HAND_MAX_SPEED;
+                //if (reachWindow < 0f || entryDistSq > reachWindow * reachWindow) return float.MaxValue;
 
                 float cost = 0f;
                 cost += DJAUTO_COST_POS * math.distancesq(hand.Pos, p.GetAssignPos());
-                cost += DJAUTO_COST_INERTIA * (p.StartTime - hand.ServeEnd);
-                cost += DJAUTO_COST_SWEEP * math.abs(hand.SweptAngle);
+                cost += DJAUTO_COST_TIME * (p.StartTime - time);
                 return cost;
             }
 

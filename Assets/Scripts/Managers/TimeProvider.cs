@@ -73,7 +73,14 @@ namespace MajdataViewX.Managers
         {
             TimeData.IsStart = IsStart;
             TimeData.deltaTime = IsRecord ? FRAME_LENGTH_SEC : Time.deltaTime;
-            if (!IsStart) return;
+            if (!IsStart)
+            {
+                mmvAudioTime.Read(0, out float time);
+                AudioTime = time;
+                NoteTime = AudioTime - offset;
+                TimeData.NoteTime = NoteTime;
+                return;
+            }
 
             if (IsRecord)
             {

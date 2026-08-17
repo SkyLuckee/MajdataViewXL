@@ -1,6 +1,6 @@
 using MajdataViewX.Notes;
 using MajdataViewX.Types.Notes;
-using MajdataViewX.Types.MajWs;
+using MajSimai;
 using System;
 using System.Collections.Generic;
 using Unity.Collections;
@@ -134,7 +134,7 @@ namespace MajdataViewX.Managers
         private NativeList<ReportResultEntry> reportRequests = new(65536, Allocator.Persistent);
         public NativeList<ReportResultEntry>.ParallelWriter ReportRequestsWriter => reportRequests.AsParallelWriter();
 
-        public void CountNoteSum(SimaiChartDto chart)
+        public void CountNoteSum(SimaiChart chart)
         {
             foreach (var timing in chart.NoteTimings)
             {
@@ -188,7 +188,7 @@ namespace MajdataViewX.Managers
             totalDXScore = NoteSum * 3;
         }
 
-        public void CountIgnoreNoteCountAsync(SimaiChartDto chart, double ignore)
+        public void CountIgnoreNoteCountAsync(SimaiChart chart, double ignore)
         {
             foreach (var timing in chart.NoteTimings)
             {

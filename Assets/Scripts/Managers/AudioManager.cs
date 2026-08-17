@@ -5,7 +5,7 @@ using MajdataViewX.Base;
 using MajdataViewX.Types.Audio;
 using MajdataViewX.Types.MajSetting;
 using MajdataViewX.Utils.Extensions;
-using MajdataViewX.Types.MajWs;
+using MajSimai;
 using ManagedBass;
 using System;
 using System.Collections.Generic;
@@ -375,9 +375,9 @@ namespace MajdataViewX.Managers
 
         //Sfx control
 
-        public void GenerateAnswerSFX(SimaiChartDto chart, int clockCount = 0)
+        public void GenerateAnswerSFX(SimaiChart chart, int clockCount = 0)
         {
-            if (chart.NoteTimings.Length == 0) return;
+            if (chart.NoteTimings.IsEmpty) return;
 
             //Generate ClockSounds
             var firstBpm = chart.NoteTimings[0].Bpm;

@@ -1,5 +1,6 @@
+using MajdataViewX.Base;
 using MajdataViewX.Types.Enums;
-using MajdataViewX.Types.MajWs;
+using MajSimai;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -38,8 +39,7 @@ namespace MajdataViewX.Managers
         private readonly Stopwatch playbackClock = new();
 
 
-        private string mmfAudioTimePath =>
-            Path.Combine(Application.persistentDataPath, "majdata_time.dat");
+
         private MemoryMappedFile mmfAudioTime;
         private MemoryMappedViewAccessor mmvAudioTime;
 
@@ -51,7 +51,7 @@ namespace MajdataViewX.Managers
             ResetState();
 
             var mmfAudioTimeFileStream = new FileStream(
-                mmfAudioTimePath,
+                MajEnv.MmfAudioTimePath,
                 FileMode.OpenOrCreate,
                 FileAccess.ReadWrite,
                 FileShare.ReadWrite
@@ -98,7 +98,7 @@ namespace MajdataViewX.Managers
             TimeData.NoteTime = NoteTime;
         }
 
-        public unsafe void LoadSV(ReadOnlySpan<SimaiTimingPointDto> commaTimings)
+        public unsafe void LoadSV(ReadOnlySpan<SimaiTimingPoint> commaTimings)
         {
             SVList.Clear();
             if (SVFuncArgs.IsCreated) SVFuncArgs.Dispose();
@@ -262,7 +262,6 @@ namespace MajdataViewX.Managers
         readonly unsafe ReadOnlySpan<(float k, float b)> SVFuncArgs => new(__SVFuncArgsPtr, __SVFuncArgsLength);
 
 
-        [BurstCompile]
         public readonly float GetPositionAtTime(float t)
         {
             if (SVList.Length == 0)

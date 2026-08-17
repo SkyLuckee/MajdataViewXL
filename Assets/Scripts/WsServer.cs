@@ -112,7 +112,8 @@ namespace MajdataViewX
                         Debug.Log("request finished: Load");
                         break;
                     case MajWsUpdateRequest r:
-                        await _playManager.UpdateAsync(r.File, r.SelectedDifficulty);
+                        // 图数据经共享内存传输：FileLength/ChartLength 即 Edit 写入的两段 MemoryPack 字节数
+                        await _playManager.UpdateAsync(r.FileLength, r.ChartLength, r.SelectedDifficulty);
                         Response(MajWsResponseType.Ok, PlayManager.Summary);
                         Debug.Log("request finished: Update");
                         break;

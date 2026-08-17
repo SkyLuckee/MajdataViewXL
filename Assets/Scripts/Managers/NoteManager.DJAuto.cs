@@ -17,7 +17,6 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
 using static MajdataViewX.Base.MajBurst;
-using static UnityEditor.Rendering.ShadowCascadeGUI;
 
 namespace MajdataViewX.Managers
 {
@@ -25,8 +24,8 @@ namespace MajdataViewX.Managers
     {
         // 同一 timing 内收集到的 touch 类引用（指向 touches/touchHolds 的 index），LoadTiming 末尾做双圆预合并后写入 infos。
         private NativeList<DJAutoTouchInfo> _djAutoTouchInfosThisTiming = new(64, Allocator.Persistent);
-        // touch 组合(sensor 子集掩码) -> 双圆手法的缓存，重复 touch 模式只算一次
-        private readonly Dictionary<ulong, TwoCircleBest> _touchComboCache = new();
+        // touch 组合(sensor 子集掩码) -> 双圆手法的缓存（NativeHashMap 支持动态扩容，随 Load 复用：每次加载前 Clear，OnDestroy 时 Dispose）
+        private readonly NativeHashMap<ulong, TwoCircleBest> _touchComboCache = new(256, Allocator.Persistent);
 
 
         NativeArray<DJAutoHand> _djAutoHands = new(2, Allocator.Persistent);
@@ -121,19 +120,21 @@ namespace MajdataViewX.Managers
 
         /// <summary>
         /// 本 timing 的 touch hit 双圆预合并：双手只有两只，用最多两个覆盖圆覆盖本 timing 尽量多的 touch 落点。
-        /// 第一圆候选 = 每 1/2/3 点的最小覆盖圆；剩余点交给第二圆同样「尽量多管」（≤MAX 覆盖最多点的单圆）。
         /// 半径上限 DJAUTO_HAND_MAX_RADIUS、下限 DJAUTO_HAND_RADIUS；
-        /// 选优：合计覆盖点数最多 -> max(r1,r2) 最小 -> |r1-r2| 最小。
-        /// 超上限废弃；覆盖不到的点不生成 hit -> Miss 看命。计算由 Burst 直接把结果 Add 进 infos。
+        /// 超上限废弃；覆盖不到的点不生成 hit -> Miss。
+        ///
+        /// 全部计算（sensor 掩码缓存查询/写入 + 四圆枚举 + 写 plays）都在 <see cref="CombineTouchHitsJob"/> 里
+        /// 以 Burst 真正编译执行（Run 同步）。缓存是 NativeHashMap（随 Load 复用，Load 开头 Clear），
+        /// job 内自包含读写，主线程不参与。
         /// </summary>
         private void CombineTouchHitsThisTiming()
         {
-            var infos = _djAutoTouchInfosThisTiming;
-            int n = infos.Length;
+            var touchInfos = _djAutoTouchInfosThisTiming;
+            int n = touchInfos.Length;
             if (n == 0) return;
             if (n == 1)
             {
-                var r = infos[0];
+                var r = touchInfos[0];
                 var sensor = r.Sensor;
                 var pos = MajPos.GetSensorJudgePos(sensor);
                 plays.Add(new DJAutoPlayData(
@@ -142,24 +143,51 @@ namespace MajdataViewX.Managers
                     r.StartTime,
                     r.EndTime,
                     true));
-                infos.Clear();
+                touchInfos.Clear();
                 return;
             }
 
-            // 四圆：双圆 C1/C2 覆盖最多点，剩余点 S' 再算双圆 C3/C4（hashmap 缓存复用）。
-            var four = ComputeFourCircle(infos.AsArray());
-            CombineTouchHitsBurst(infos.AsArray(),
-                four,
-                DJAUTO_HAND_RADIUS, DJAUTO_HAND_MAX_RADIUS,
-                ref plays);
-            infos.Clear();
+            new CombineTouchHitsJob
+            {
+                infos = touchInfos.AsArray(),
+                plays = plays,
+                handRadius = DJAUTO_HAND_RADIUS,
+                maxRadius = DJAUTO_HAND_MAX_RADIUS,
+                cache = _touchComboCache,
+            }.Run();
+
+            touchInfos.Clear();
         }
 
-
-        /// <summary>四圆 = 两次双圆（缓存复用）：first 覆盖最多点，second 覆盖 first 之外的剩余点。</summary>
-        private FourCircleBest ComputeFourCircle(NativeArray<DJAutoTouchInfo> infos)
+        /// <summary>
+        /// 本 timing 的双圆预合并 Burst Job：先在 NativeHashMap 里按 sensor 掩码查/写双圆结果
+        /// （first + 剩余点 second 两级缓存，与旧托管 Dictionary 语义一致），再按四圆/双圆把 hit 写进 plays。
+        /// Load 是同步主线程流程（plays 之后还要 Sort/Bind），用 Run() 同步执行。
+        /// </summary>
+        [BurstCompile]
+        private struct CombineTouchHitsJob : IJob
         {
-            var first = GetOrComputeTwoCircle(infos);
+            [ReadOnly] public NativeArray<DJAutoTouchInfo> infos;
+            public NativeList<DJAutoPlayData> plays;
+            public float handRadius;
+            public float maxRadius;
+            public NativeHashMap<ulong, TwoCircleBest> cache;
+
+            public void Execute()
+            {
+                var four = ComputeFourCircleBurst(infos, cache, handRadius, maxRadius);
+                CombineTouchHitsBurst(infos, four, handRadius, maxRadius, ref plays);
+            }
+        }
+
+        /// <summary>四圆 = 两次双圆（NativeHashMap 缓存复用）：first 覆盖最多点，second 覆盖 first 之外的剩余点。</summary>
+        [BurstCompile]
+        private static FourCircleBest ComputeFourCircleBurst(
+            NativeArray<DJAutoTouchInfo> infos,
+            NativeHashMap<ulong, TwoCircleBest> cache,
+            float handRadius, float maxRadius)
+        {
+            var first = GetOrComputeTwoCircleBurst(infos, cache, handRadius, maxRadius);
             var four = new FourCircleBest { First = first };
 
             int n = infos.Length;
@@ -173,18 +201,23 @@ namespace MajdataViewX.Managers
                 if (!covered) remaining.Add(r);
             }
             if (remaining.Length > 0)
-                four.Second = GetOrComputeTwoCircle(remaining.AsArray());
+                four.Second = GetOrComputeTwoCircleBurst(remaining.AsArray(), cache, handRadius, maxRadius);
             remaining.Dispose();
             return four;
         }
-        /// <summary>sensor 子集掩码池化：重复 touch 模式直接复用双圆手法，只算新的。</summary>
-        private TwoCircleBest GetOrComputeTwoCircle(NativeArray<DJAutoTouchInfo> infos)
+
+        /// <summary>sensor 子集掩码池化：重复 touch 模式直接复用双圆手法，只算新的（job 内执行，全程 Burst）。</summary>
+        [BurstCompile]
+        private static TwoCircleBest GetOrComputeTwoCircleBurst(
+            NativeArray<DJAutoTouchInfo> infos,
+            NativeHashMap<ulong, TwoCircleBest> cache,
+            float handRadius, float maxRadius)
         {
             ulong mask = ComputeSensorMask(infos);
-            if (_touchComboCache.TryGetValue(mask, out var best))
+            if (cache.TryGetValue(mask, out var best))
                 return best;
-            best = ComputeTwoCircle(infos, DJAUTO_HAND_RADIUS, DJAUTO_HAND_MAX_RADIUS);
-            _touchComboCache[mask] = best;
+            best = ComputeTwoCircle(infos, handRadius, maxRadius);
+            cache.TryAdd(mask, best);
             return best;
         }
 
@@ -312,7 +345,10 @@ namespace MajdataViewX.Managers
 
 
 
-        /// <summary>对给定子集做双圆枚举（1/2/3 点候选 + 第二圆尽量多管），返回最优两圆，不写 infos。</summary>
+        /// <summary>
+        /// 对给定子集做双圆枚举（1/2/3 点候选 + 第二圆尽量多管），返回最优两圆，不写 infos。
+        /// 先按 Pos 去重：覆盖圆只关心位置，同位置的重复 touch 合成一个带计数的点。
+        /// </summary>
         [BurstCompile]
         private static TwoCircleBest ComputeTwoCircle(
             NativeArray<DJAutoTouchInfo> infos,
@@ -322,23 +358,38 @@ namespace MajdataViewX.Managers
             var best = new TwoCircleBest { Max = float.MaxValue, Diff = float.MaxValue };
             if (n == 0) return best;
 
-            // 预计算各点 Pos（从 touch/touchhold sensor）
+            // 同位置去重（带计数）：枚举只对 m 个不同位置做，覆盖分按计数累计，选优语义与不去重一致
             var posArr = new NativeArray<float2>(n, Allocator.Temp);
+            var countArr = new NativeArray<int>(n, Allocator.Temp);
+            int m = 0;
             for (int i = 0; i < n; i++)
-                posArr[i] = infos[i].Pos;
+            {
+                var p = infos[i].Pos;
+                int k = 0;
+                for (; k < m; k++)
+                    if (math.all(posArr[k] == p)) break;
+                if (k == m)
+                {
+                    posArr[m] = p;
+                    countArr[m] = 1;
+                    m++;
+                }
+                else countArr[k]++;
+            }
 
-            for (int i = 0; i < n; i++)
-                ConsiderFirst(posArr, handRadius, maxRadius, new Circle { C = posArr[i], R = 0f }, ref best);
-            for (int i = 0; i < n; i++)
-                for (int j = i + 1; j < n; j++)
-                    ConsiderFirst(posArr, handRadius, maxRadius, MinEnclosing2(posArr[i], posArr[j]), ref best);
-            if (n <= TWO_CIRCLE_3POINT_CANDIDATE_MAX_N)
-                for (int i = 0; i < n; i++)
-                    for (int j = i + 1; j < n; j++)
-                        for (int k = j + 1; k < n; k++)
-                            ConsiderFirst(posArr, handRadius, maxRadius, MinEnclosing3(posArr[i], posArr[j], posArr[k]), ref best);
+            for (int i = 0; i < m; i++)
+                ConsiderFirst(posArr, countArr, m, handRadius, maxRadius, new Circle { C = posArr[i], R = 0f }, ref best);
+            for (int i = 0; i < m; i++)
+                for (int j = i + 1; j < m; j++)
+                    ConsiderFirst(posArr, countArr, m, handRadius, maxRadius, MinEnclosing2(posArr[i], posArr[j]), ref best);
+            if (m <= TWO_CIRCLE_3POINT_CANDIDATE_MAX_N)
+                for (int i = 0; i < m; i++)
+                    for (int j = i + 1; j < m; j++)
+                        for (int k = j + 1; k < m; k++)
+                            ConsiderFirst(posArr, countArr, m, handRadius, maxRadius, MinEnclosing3(posArr[i], posArr[j], posArr[k]), ref best);
 
             posArr.Dispose();
+            countArr.Dispose();
             return best;
         }
 
@@ -362,32 +413,39 @@ namespace MajdataViewX.Managers
 
         [BurstCompile]
         private static void ConsiderFirst(
-            NativeArray<float2> posArr, float handRadius, float maxRadius,
+            NativeArray<float2> posArr, NativeArray<int> countArr, int n,
+            float handRadius, float maxRadius,
             Circle first, ref TwoCircleBest best)
         {
             float r1 = math.max(first.R, handRadius);
             if (r1 > maxRadius) return;
 
             float2 cc = first.C;
-            int n = posArr.Length;
             var remaining = new NativeList<float2>(n, Allocator.Temp);
+            var remainingCounts = new NativeList<int>(n, Allocator.Temp);
+            int covered1 = 0;
             for (int i = 0; i < n; i++)
+            {
                 if (math.distance(posArr[i], cc) > r1 + MajGeo.Epsilon)
+                {
                     remaining.Add(posArr[i]);
+                    remainingCounts.Add(countArr[i]);
+                }
+                else covered1 += countArr[i];
+            }
 
-            int covered1 = n - remaining.Length;
             int covered;
             float maxR, diff, r2 = 0f;
             float2 c2 = default;
             bool hasC2;
             if (remaining.Length == 0)
             {
-                covered = n;
+                covered = covered1;
                 maxR = r1; diff = r1; hasC2 = false;
             }
             else
             {
-                var sb = BestSingleCircle(remaining, handRadius, maxRadius);
+                var sb = BestSingleCircle(remaining, remainingCounts, handRadius, maxRadius);
                 r2 = sb.R;
                 c2 = sb.C;
                 covered = covered1 + sb.Cov;
@@ -396,6 +454,7 @@ namespace MajdataViewX.Managers
                 hasC2 = true;
             }
             remaining.Dispose();
+            remainingCounts.Dispose();
 
             // 同覆盖点数时优先单圆(hasC2=false)：一只手大圆覆盖 优于 两只手小圆覆盖，
             // 避免双圆的 r2 hit 在双手状态机里抢不到手被忽略、其覆盖的 touch miss
@@ -414,9 +473,11 @@ namespace MajdataViewX.Managers
             }
         }
 
-        /// <summary>在 pts 中选 1 个 ≤MAX 的圆（1/2/3 点候选）覆盖 pts 中最多点。</summary>
+        /// <summary>在 pts 中选 1 个 ≤MAX 的圆（1/2/3 点候选）覆盖 pts 中最多点（覆盖分按计数累计）。</summary>
         [BurstCompile]
-        private static SingleBest BestSingleCircle(NativeList<float2> pts, float handRadius, float maxRadius)
+        private static SingleBest BestSingleCircle(
+            NativeList<float2> pts, NativeList<int> counts,
+            float handRadius, float maxRadius)
         {
             float2 bestC = default;
             float bestR = float.MaxValue;
@@ -424,30 +485,30 @@ namespace MajdataViewX.Managers
             int n = pts.Length;
 
             for (int i = 0; i < n; i++)
-                ConsiderSingle(pts, handRadius, maxRadius, new Circle { C = pts[i], R = 0f }, ref bestC, ref bestR, ref bestCov);
+                ConsiderSingle(pts, counts, n, handRadius, maxRadius, new Circle { C = pts[i], R = 0f }, ref bestC, ref bestR, ref bestCov);
             for (int i = 0; i < n; i++)
                 for (int j = i + 1; j < n; j++)
-                    ConsiderSingle(pts, handRadius, maxRadius, MinEnclosing2(pts[i], pts[j]), ref bestC, ref bestR, ref bestCov);
+                    ConsiderSingle(pts, counts, n, handRadius, maxRadius, MinEnclosing2(pts[i], pts[j]), ref bestC, ref bestR, ref bestCov);
             if (n <= TWO_CIRCLE_3POINT_CANDIDATE_MAX_N)
                 for (int i = 0; i < n; i++)
                     for (int j = i + 1; j < n; j++)
                         for (int k = j + 1; k < n; k++)
-                            ConsiderSingle(pts, handRadius, maxRadius, MinEnclosing3(pts[i], pts[j], pts[k]), ref bestC, ref bestR, ref bestCov);
+                            ConsiderSingle(pts, counts, n, handRadius, maxRadius, MinEnclosing3(pts[i], pts[j], pts[k]), ref bestC, ref bestR, ref bestCov);
 
             return new SingleBest { C = bestC, R = bestR, Cov = bestCov };
         }
 
         [BurstCompile]
         private static void ConsiderSingle(
-            NativeList<float2> pts, float handRadius, float maxRadius, Circle cand,
+            NativeList<float2> pts, NativeList<int> counts, int n,
+            float handRadius, float maxRadius, Circle cand,
             ref float2 bestC, ref float bestR, ref int bestCov)
         {
             float r = math.max(cand.R, handRadius);
             if (r > maxRadius) return;
             int cov = 0;
-            int n = pts.Length;
             for (int i = 0; i < n; i++)
-                if (math.distance(pts[i], cand.C) <= r + MajGeo.Epsilon) cov++;
+                if (math.distance(pts[i], cand.C) <= r + MajGeo.Epsilon) cov += counts[i];
             if (cov > bestCov || (cov == bestCov && r < bestR))
             {
                 bestCov = cov;

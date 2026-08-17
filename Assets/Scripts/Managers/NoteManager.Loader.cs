@@ -6,7 +6,7 @@ using MajdataViewX.Types.Enums;
 using MajdataViewX.Types.Input;
 using MajdataViewX.Utils;
 using MajdataViewX.Utils.Extensions;
-using MajdataViewX.Types.MajWs;
+using MajSimai;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -36,7 +36,7 @@ namespace MajdataViewX.Managers
 
         private readonly List<NoteRegister>[] loadedTouches = new List<NoteRegister>[SENSOR_COUNT];
 
-        public unsafe void Load(SimaiChartDto chart)
+        public unsafe void Load(SimaiChart chart)
         {
             if (chart.IsEmpty) return;
             _prevChain.Complete();
@@ -71,6 +71,21 @@ namespace MajdataViewX.Managers
                     loadedTouches[i].Clear();
                 else
                     loadedTouches[i] = new();
+
+            // DJAuto touch 双圆缓存：NativeHashMap 支持动态扩容，随 Load 复用，每次加载前清空即可
+            _touchComboCache.Clear();
+
+            // plays 的 BindSlide 是指向 slides 缓冲的裸指针（LoadSlideChain 里 GetUnsafeReadOnlyPtr 捕获）：
+            // 循环内 slides.Add 一旦触发扩容（初始容量 1024）且缓冲搬迁，之前生成的 play 指针就悬垂，
+            // 之后 ComputeHandCost/GetEndPos/GetEntryPos 等解引用会偶发空引用/访问冲突。
+            // 按谱面 slide 总数预分配容量，保证循环内不再扩容、指针稳定。
+            var slideCount = 0;
+            foreach (var timing in chart.NoteTimings)
+                foreach (var note in timing.Notes)
+                    if (note.Type == SimaiNoteType.Slide)
+                        slideCount++;
+            if (slideCount > slides.Capacity)
+                slides.Capacity = slideCount;
 
 
             foreach (var timing in chart.NoteTimings)
@@ -139,7 +154,7 @@ namespace MajdataViewX.Managers
         }
 
 
-        private void CalcEach(in SimaiTimingPointDto timing, out bool isNoteEach, out bool isSlideEach)
+        private void CalcEach(in SimaiTimingPoint timing, out bool isNoteEach, out bool isSlideEach)
         {
             var noteCount = 0;
             var slideCount = 0;
@@ -175,7 +190,7 @@ namespace MajdataViewX.Managers
         /// 而且mine的tapline同样需要换为each line
         /// 因此全部丢进LoadSkin作特判
         /// </remarks>
-        private unsafe void LoadTiming(in SimaiTimingPointDto timing)
+        private unsafe void LoadTiming(in SimaiTimingPoint timing)
         {
             int touchStartIdx = touches.Length;
             int touchHoldStartIdx = touchHolds.Length;
@@ -500,8 +515,8 @@ namespace MajdataViewX.Managers
         }
 
         private void LoadTap(
-            in SimaiTimingPointDto timing,
-            in SimaiNoteDto note,
+            in SimaiTimingPoint timing,
+            in SimaiNote note,
             bool isEach,
             ref int sameTapCount)
         {
@@ -559,8 +574,8 @@ namespace MajdataViewX.Managers
         }
 
         private void LoadHold(
-            in SimaiTimingPointDto timing,
-            in SimaiNoteDto note,
+            in SimaiTimingPoint timing,
+            in SimaiNote note,
             bool isEach,
             ref int sameHoldCount)
         {
@@ -615,8 +630,8 @@ namespace MajdataViewX.Managers
         }
 
         private void LoadTouch(
-            in SimaiTimingPointDto timing,
-            in SimaiNoteDto note,
+            in SimaiTimingPoint timing,
+            in SimaiNote note,
             bool isEach,
             ref int sameTouchCount)
         {
@@ -665,8 +680,8 @@ namespace MajdataViewX.Managers
         }
 
         private void LoadTouchHold(
-            in SimaiTimingPointDto timing,
-            in SimaiNoteDto note,
+            in SimaiTimingPoint timing,
+            in SimaiNote note,
             bool isEach,
             ref int sameTouchHoldCount)
         {
@@ -710,8 +725,8 @@ namespace MajdataViewX.Managers
         }
 
         private string LoadSlideChain(
-            in SimaiTimingPointDto timing,
-            in SimaiNoteDto note,
+            in SimaiTimingPoint timing,
+            in SimaiNote note,
             bool isNoteEach,
             bool isSlideEach,
             string lastContent,
@@ -960,7 +975,7 @@ namespace MajdataViewX.Managers
             }
         }
 
-        private void OnNoteLoadFailed(SimaiNoteDto note, Exception e)
+        private void OnNoteLoadFailed(SimaiNote note, Exception e)
         {
             var sb = new StringBuilder();
             sb.AppendLine($"[Note Load Failed] Exception: {e.Message}");
@@ -973,11 +988,11 @@ namespace MajdataViewX.Managers
             sb.AppendLine("Note Properties:");
             try
             {
-                foreach (var prop in typeof(SimaiNoteDto).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+                foreach (var prop in typeof(SimaiNote).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
                 {
                     sb.AppendLine($"  {prop.Name}: {prop.GetValue(note)}");
                 }
-                foreach (var field in typeof(SimaiNoteDto).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+                foreach (var field in typeof(SimaiNote).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
                 {
                     sb.AppendLine($"  {field.Name}: {field.GetValue(note)}");
                 }

@@ -1,7 +1,7 @@
 #nullable enable
 
 using Cysharp.Threading.Tasks;
-using MajdataViewX.Types.MajWs;
+using MajSimai;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -26,7 +26,7 @@ namespace MajdataViewX.Managers
         }
 
         public async UniTask Load(
-            SimaiChartDto chart,
+            SimaiChart chart,
             string title,
             string artist,
             int diff)

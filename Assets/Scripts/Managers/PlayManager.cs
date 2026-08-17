@@ -7,10 +7,13 @@ using MajdataViewX.Notes.SlideUtils;
 using MajdataViewX.Types.Enums;
 using MajdataViewX.Types.MajSetting;
 using MajdataViewX.Types.MajWs;
+using MajSimai;
+using MemoryPack;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.Design;
 using System.IO;
+using System.IO.MemoryMappedFiles;
 using System.Linq;
 using System.Threading;
 using Unity.Properties;
@@ -28,13 +31,14 @@ namespace MajdataViewX.Managers
             ErrMsg = _errMsg,
         };
 
-        // 直接存储线格式 DTO：Update 从 Edit 拿到已解析数据，Play 不再全量解析
-        private static SimaiFileDto _file = new();
-        private static SimaiChartDto _chart = SimaiChartDto.Empty;
+        // 直接存储 MajSimai 原始类型：Update 从共享内存拿到已解析数据，Play 不再全量解析
+        private static SimaiFile _file = SimaiFile.Empty(string.Empty, string.Empty);
+        private static SimaiChart _chart = SimaiChart.Empty;
+        private MemoryMappedFile mmfChartData;
+        private MemoryMappedViewAccessor mmvChartData;
 
         private static ViewStatus _state = ViewStatus.Idle;
         private static string _errMsg = string.Empty;
-        private static float _thisFrameSec = 0f;
 
         private static Thread? _audioManagerThread;
         private static int _audioManagerThreadRunning;
@@ -90,7 +94,23 @@ namespace MajdataViewX.Managers
 
             SlideTableNeo.InitializeStandardSlideTable();
 
-            _state = CheckIsLoaded() ? ViewStatus.Loaded : ViewStatus.Idle;
+            var mmfChartDataFileStream = new FileStream(
+                    MajEnv.MmfChartDataPath,
+                    FileMode.OpenOrCreate,
+                    FileAccess.ReadWrite,
+                    FileShare.ReadWrite
+                );
+            if (mmfChartDataFileStream.Length < MajEnv.MmfChartDataCapacity)
+                mmfChartDataFileStream.SetLength(MajEnv.MmfChartDataCapacity);
+            mmfChartData = MemoryMappedFile.CreateFromFile(
+                mmfChartDataFileStream,
+                null,
+                MajEnv.MmfChartDataCapacity,
+                MemoryMappedFileAccess.ReadWrite,
+                HandleInheritability.None,
+                false
+            );
+            mmvChartData = mmfChartData.CreateViewAccessor();
         }
 
         private bool CheckIsLoaded() => _audioManager.IsTrackLoaded &&
@@ -166,7 +186,7 @@ namespace MajdataViewX.Managers
             _bgManager.ResizeBg = _setting.ResizeBg;
         }
 
-        public async UniTask UpdateAsync(SimaiFileDto file, int selectedDiff)
+        public async UniTask UpdateAsync(long fileLength, long chartLength, int selectedDiff)
         {
             while (_state is ViewStatus.Busy)
                 await UniTask.Yield();
@@ -174,8 +194,18 @@ namespace MajdataViewX.Managers
             var previousState = _state;
             _state = ViewStatus.Busy;
 
+            // 从共享内存读取 Edit 写入的两段 MemoryPack 字节并反序列化：
+            // [0..fileLength) = SimaiFile 元数据（Charts 已 Ignore），[fileLength..) = SimaiChart 时序
+            var fileBuffer = new byte[fileLength];
+            mmvChartData.ReadArray(0, fileBuffer, 0, (int)fileLength);
+            var chartBuffer = new byte[chartLength];
+            mmvChartData.ReadArray(fileLength, chartBuffer, 0, (int)chartLength);
+
+            var file = MemoryPackSerializer.Deserialize<SimaiFile>(fileBuffer) ?? SimaiFile.Empty(string.Empty, string.Empty);
+            var chart = MemoryPackSerializer.Deserialize<SimaiChart>(chartBuffer) ?? SimaiChart.Empty;
+
             _file = file;
-            _chart = file.Charts[selectedDiff] ?? SimaiChartDto.Empty;
+            _chart = chart;
 
             _timeProvider.offset = _file.Offset;
             //answer
@@ -350,6 +380,9 @@ namespace MajdataViewX.Managers
             _audioManager.OnDestroy();
             _inputManager.OnDestroy();
             MajBurst.InputData.Dispose();
+
+            mmvChartData?.Dispose();
+            mmfChartData?.Dispose();
         }
     }
 }

@@ -2,7 +2,7 @@ using Cysharp.Text;
 using MajdataViewX.Notes;
 using MajdataViewX.Types;
 using MajdataViewX.Types.Enums;
-using MajdataViewX.Types.MajWs;
+using MajSimai;
 using System;
 using TMPro;
 using UnityEngine;
@@ -177,7 +177,7 @@ namespace MajdataViewX.Managers
             }
         }
 
-        public void ReportMeterBpm(SimaiChartDto chart)
+        public void ReportMeterBpm(SimaiChart chart)
         {
             meterList.Clear();
             bpmList.Clear();

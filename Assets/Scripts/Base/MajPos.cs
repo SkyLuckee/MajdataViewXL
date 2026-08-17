@@ -21,7 +21,6 @@ namespace MajdataViewX.Base
         // public const float D_RADIUS = 0.974f;
         // public const float E_RADIUS = 0.515f;
 
-        [BurstCompile]
         public static float GetSensorRadius(SensorType sensor)
         {
             int i = (int)sensor;
@@ -42,7 +41,6 @@ namespace MajdataViewX.Base
         /// 获取输入判定使用的传感器圆心。
         /// D 区的物理判定圆心与音符显示位置不同。
         /// </summary>
-        [BurstCompile]
         public static float2 GetSensorJudgePos(SensorType sensor)
         {
             int i = (int)sensor;
@@ -56,7 +54,6 @@ namespace MajdataViewX.Base
         /// </summary>
         /// <param name="key">按键索引，注意是在0~7之间</param>
         /// <returns></returns>
-        [BurstCompile]
         public static float2 GetBtnPos(int key)
         {
             if (key >= 0 && key <= 7)
@@ -69,7 +66,6 @@ namespace MajdataViewX.Base
         /// </summary>
         /// <param name="sensor">判定区</param>
         /// <returns></returns>
-        [BurstCompile]
         public static float2 GetAreaPos(SensorType sensor)
         {
             int i = (int)sensor;
@@ -85,7 +81,6 @@ namespace MajdataViewX.Base
                 return RingPos(3.1f, i - 24, true);
             return float2.zero;
         }
-        [BurstCompile]
         public static float2 RingPos(float radius, int index1, bool altAngle)
         {
             var a = altAngle

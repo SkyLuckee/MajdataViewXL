@@ -6,7 +6,7 @@ using MajdataViewX.Types.Notes;
 using MajdataViewX.Types.Notes.RenderData;
 using MajdataViewX.Utils;
 using MajdataViewX.Utils.Extensions;
-using MajdataViewX.Types.MajWs;
+using MajSimai;
 using System.Threading;
 using Unity.Burst;
 using Unity.Collections;

@@ -6,7 +6,7 @@ using MajdataViewX.Types.Notes.RenderData;
 using MajdataViewX.Types.Rendering;
 using MajdataViewX.Utils;
 using MajdataViewX.Utils.Extensions;
-using MajdataViewX.Types.MajWs;
+using MajSimai;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
@@ -151,7 +151,7 @@ namespace MajdataViewX.Managers
             _hitSwipeGroup?.Dispose();
         }
 
-        private void ConfigureRenderCapacity(SimaiChartDto chart)
+        private void ConfigureRenderCapacity(SimaiChart chart)
         {
             var noteCount = 0;
             foreach (var timing in chart.NoteTimings)
@@ -419,6 +419,7 @@ namespace MajdataViewX.Managers
             if (_djAutoHands.IsCreated) _djAutoHands.Dispose();
             if (_djAutoTouchInfosThisTiming.IsCreated) _djAutoTouchInfosThisTiming.Dispose();
             if (_djAutoMoveCurve.IsCreated) _djAutoMoveCurve.Dispose();
+            if (_touchComboCache.IsCreated) _touchComboCache.Dispose();
 
             if (touchGroupTotalCounts.IsCreated) touchGroupTotalCounts.Dispose();
             if (touchGroupJudgedCounts.IsCreated) touchGroupJudgedCounts.Dispose();

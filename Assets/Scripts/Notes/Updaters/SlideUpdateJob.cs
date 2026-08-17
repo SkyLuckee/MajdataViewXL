@@ -7,7 +7,7 @@ using MajdataViewX.Types.Input;
 using MajdataViewX.Types.Notes;
 using MajdataViewX.Types.Notes.RenderData;
 using MajdataViewX.Utils.Extensions;
-using MajSimai;
+using MajdataViewX.Types.MajWs;
 using System.Threading;
 using Unity.Burst;
 using Unity.Collections;
@@ -40,15 +40,51 @@ namespace MajdataViewX.Notes.Updaters
 
         public const float SlideOKKeepDuration = 17 * MajCtx.FRAME_LENGTH_SEC;
         public const float SlideOKFadeOutDuration = 8 * MajCtx.FRAME_LENGTH_SEC;
-
         public void Execute(int index)
         {
+            if (!TimeData.IsStart)
+            {
+                SeeOnlyUpdate(slides[index], index);
+                return;
+            }
             ref var slide = ref slides.ElementRef(index);
             TransformUpdate(ref slide, index);
             AutoplayUpdate(ref slide);
             CheckUpdate(ref slide);
         }
 
+        private void SeeOnlyUpdate(SlideData slide, int index)
+        {
+            if (slide.isFolded) return;
+            if (TimeData.NoteTime < slide.tapTime ||
+                TimeData.NoteTime > slide.shootTime + slide.LastFor) return;
+            var timeVal = ((uint)math.max(0f, slide.tapTime * 100f)) & 0x7FFFF;
+            var timePart = NoteHelper.Settings.LegacySlideLayer ? (0x7FFFFu - timeVal) : timeVal;
+
+            var cnt = slide.slideArrowsCount;
+            var startIdx = 1;
+            var endIdx = slide.noLastArrow ? cnt - 2 : cnt - 1;
+            var writeCount = math.max(0, endIdx - startIdx);
+
+            if (writeCount <= 0) return;
+
+            var idx = Interlocked.Add(ref *SlidesWriteCountPtr, writeCount) - writeCount;
+            for (var i = startIdx; i < endIdx; i++)
+            {
+                var p = slide.slideArrows[i];
+
+                slidesRender[idx + i - startIdx] = new SimpleRenderData
+                {
+                    pos = new float2(p.X, p.Y),
+                    angRad = math.radians(p.RotZ),
+                    scale = new float2(1, 1),
+                    spriteId = slide.isWifi ? slide.slideSprite.Offset(i - 1) : slide.slideSprite,
+                    color = 1f,
+                    brightness = 1f,
+                    sort = (timePart << 13) | ((uint)(index & 0x1F) << 8) | ((uint)i & 0xFF),
+                };
+            }
+        }
         // 注意：RenderXXX都是需要每帧调用的
         private void TransformUpdate(ref SlideData slide, int index)
         {
@@ -119,7 +155,7 @@ namespace MajdataViewX.Notes.Updaters
 
             // sortTime (30 bits): [19 bits: time (87 mins wrap)] + [11 bits: index tie-breaker (2048 wrap)]
             var timeVal = ((uint)math.max(0f, slide.tapTime * 100f)) & 0x7FFFF;
-            var timePart = slide.legacySlideLayer ? (0x7FFFFu - timeVal) : timeVal;
+            var timePart = NoteHelper.Settings.LegacySlideLayer ? (0x7FFFFu - timeVal) : timeVal;
             var sortTime = ((timePart << 11) | (uint)(index & 0x7FF)) & 0x3FFFFFFF;
 
             // 第一个是路径起点，最后一个是路径终点，忽略不画，倒数第二个要看情况
@@ -168,7 +204,7 @@ namespace MajdataViewX.Notes.Updaters
             // =====渲染逻辑=====
             // sortTime (30 bits): [19 bits: time (87 mins wrap)] + [11 bits: index tie-breaker (2048 wrap)]
             var timeVal = ((uint)math.max(0f, slide.tapTime * 100f)) & 0x7FFFF;
-            var timePart = slide.legacySlideLayer ? (0x7FFFFu - timeVal) : timeVal;
+            var timePart = NoteHelper.Settings.LegacySlideLayer ? (0x7FFFFu - timeVal) : timeVal;
             var sortTime = ((timePart << 11) | (uint)(index & 0x7FF)) & 0x3FFFFFFF;
             if (!slide.isWifi)
             {
@@ -238,26 +274,16 @@ namespace MajdataViewX.Notes.Updaters
 
         private void AutoplayUpdate(ref SlideData slide)
         {
-            // if (NoteHelper.AutoPlayMode is AutoPlayMode.Disable) return; // 下面
-            // 模拟模式下，快星星会划到底，慢星星就不会黏在最后一个区
-            // 所以IsJudged之后晚100ms再松手，如果这100ms以内已经IsSlideEnd了那就直接松
-            // 非模拟模式下IsJudged和IsSlideEnd同步所以行为不变
-            // TODO: 移动该逻辑到新版本
-            if (slide.isEnd || slide.isSlideEnd ||
-               (slide.isJudged && TimeData.NoteTime > slide.judgeTime + InputManager.DJAUTO_SLIDE_RELEASE_DELAY_SEC)
-            ) return;
+            if (slide.isEnd || slide.isSlideEnd) return;
             var timing = TimeData.NoteTime - slide.shootTime;
-            var autoplayStart = NoteHelper.AutoPlayMode == AutoPlayMode.DJAutoButton && slide.hasTapGuide
-                ? InputManager.DJAUTO_SLIDE_TAP_GUIDE_DELAY_SEC // 外键拍划enabled也尊重一下🤝
-                : InputManager.AUTOPLAY_START_SEC;
-            if (timing < autoplayStart) return;
-            switch (NoteHelper.AutoPlayMode)
+            if (timing < InputManager.AUTOPLAY_START_SEC) return;
+            switch (NoteHelper.Settings.AutoPlayMode)
             {
                 // 非模拟模式下星星可以正常走到尾再显示slideok并销毁
                 case AutoPlayMode.Enable:
                 case AutoPlayMode.Random:
                     {
-                        if (slide.smoothSlideAnime)
+                        if (NoteHelper.Settings.SmoothSlideAnime)
                         {
                             // 先前 RenderStar 的时候计算过 processIdx 可以直接拿来用
                             slide.eaten = slide.processIdx - 1;
@@ -287,7 +313,7 @@ namespace MajdataViewX.Notes.Updaters
 
                         if (slide.process >= 1)
                         {
-                            if (NoteHelper.AutoPlayMode is AutoPlayMode.Enable)
+                            if (NoteHelper.Settings.AutoPlayMode is AutoPlayMode.Enable)
                             {
                                 slide.judgeGrade = JudgeGrade.LateCritical;
                             }
@@ -312,7 +338,7 @@ namespace MajdataViewX.Notes.Updaters
                 case AutoPlayMode.DJAutoSensor:
                 case AutoPlayMode.Disable: // disable也要处理mine情况
                     {
-                        if (!slide.isMine || !slide.mineAutoSlide) break;
+                        if (!slide.isMine || !NoteHelper.Settings.MineAutoSlide) break;
 
                         // 目前判定到哪个区
                         var idx = slide.judgeCurrent;
@@ -365,7 +391,7 @@ namespace MajdataViewX.Notes.Updaters
                             newEaten = slide.judgeQueue[idx].ArrowProgressPush;
                         }
 
-                        if (slide.smoothSlideAnime)
+                        if (NoteHelper.Settings.SmoothSlideAnime)
                         {
                             newEaten = slide.processIdx - 1;
                         }

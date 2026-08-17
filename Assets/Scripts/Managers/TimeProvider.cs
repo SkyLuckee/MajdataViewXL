@@ -1,5 +1,5 @@
 using MajdataViewX.Types.Enums;
-using MajSimai;
+using MajdataViewX.Types.MajWs;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -30,7 +30,7 @@ namespace MajdataViewX.Managers
 
         private double startRealtime; //the beginning of the program is 0
         private float startAt; //the beginning of the audio is 0
-        private float offset;
+        public float offset;
         private float speed;
         //for pause and resume
         private double accumulated;
@@ -98,7 +98,7 @@ namespace MajdataViewX.Managers
             TimeData.NoteTime = NoteTime;
         }
 
-        public unsafe void LoadSV(ReadOnlySpan<SimaiTimingPoint> commaTimings)
+        public unsafe void LoadSV(ReadOnlySpan<SimaiTimingPointDto> commaTimings)
         {
             SVList.Clear();
             if (SVFuncArgs.IsCreated) SVFuncArgs.Dispose();
@@ -141,7 +141,6 @@ namespace MajdataViewX.Managers
 
         public void SetStartTime(double _startAt, double _offset, float _speed, PlaybackMode mode, int fps = 60)
         {
-            IsStart = false;
             IsRecord = false;
             AudioTime = 0f;
             NoteTime = 0f;

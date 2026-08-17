@@ -30,8 +30,6 @@ namespace MajdataViewX.Managers
 
 
         NativeArray<DJAutoHand> _djAutoHands = new(2, Allocator.Persistent);
-        NativeArray<DJAutoPlayData> _leftHandPlays;
-        NativeArray<DJAutoPlayData> _rightHandPlays;
 
         private const int DJAUTO_CURVE_RESOLUTION = 2048;
         private static NativeArray<float> _djAutoMoveCurve;
@@ -81,9 +79,12 @@ namespace MajdataViewX.Managers
         // 拍划绑定
         /// <summary>hit 结束到 swipe 开始允许预绑定的最大时间差。</summary>
         public const float DJAUTO_HIT_SWIPE_CHAIN_SEC = 0.01f;
-        /// <summary>hit 位置到 swipe 起点允许预绑定的最大距离。</summary>
+        /// <summary>hit 位置到 swipe 起点允许预绑定的最大距离。（内屏）</summary>
         public const float DJAUTO_HIT_SWIPE_CHAIN_DIST = 0.1f;
-        // 拍划绑定
+        /// <summary>hit 位置到 swipe 起点允许预绑定的最大辐角。（外键）</summary>
+        public const float DJAUTO_HIT_SWIPE_CHAIN_ANG = 0.01f;
+
+        // 一笔画绑定
         /// <summary>swipe 结束到 swipe 开始允许预绑定的最大时间差。</summary>
         public const float DJAUTO_SWIPE_SWIPE_CHAIN_SEC = 0.078f;
         /// <summary>swipe 结束到 swipe 起点允许预绑定的最大距离。</summary>
@@ -654,7 +655,7 @@ namespace MajdataViewX.Managers
                         dist <= MajGeo.GroupBRadius &&
                         !swipe.IsWifi) // 非wifi，差一点可以蹭到C区touch的情况
                     {
-                        hit.IsReserved |= true;
+                        hit.IsAssigned = true;
                         swipe.SkipCTime = time;
                         swipe.Radius += 0.2f;
                         break;
@@ -668,7 +669,7 @@ namespace MajdataViewX.Managers
                 }
                 if (bestSwipe >= 0)
                 {
-                    hit.IsReserved |= true;
+                    hit.IsAssigned = true;
                     ref var swipe = ref plays.ElementRef(bestSwipe);
                     swipe.Radius = math.max(swipe.Radius, bestReq);
                 }
@@ -706,7 +707,9 @@ namespace MajdataViewX.Managers
                             // hit 不按满 0.022 直接转
                             play.EndTime = play.StartTime;
                             play.BindPlayOffset = j;
-                            play2.IsReserved |= true;
+                            // 进来时时间要接近正解
+                            play2.StartTime += delta / 2;
+                            play2.IsAssigned = true;
                             break;
                         }
                     }
@@ -723,18 +726,20 @@ namespace MajdataViewX.Managers
                             // hit 不按满 0.022 直接转
                             play.EndTime = play.StartTime;
                             play.BindPlayOffset = j;
-                            play2.IsReserved |= true;
+                            play2.IsAssigned = true;
                             break;
                         }
                         else if ( // 外键
                         math.lengthsq(play.Pos) > math.pow(MajGeo.MainRadius, 2f) &&
                         math.abs(play.StartTime - play2.StartTime) < DJAUTO_HIT_SWIPE_CHAIN_SEC &&
-                        math.distancesq(play.Pos, play2.GetEntryPos()) < math.pow(DJAUTO_HIT_SWIPE_CHAIN_DIST + DJAUTO_BTN_DEFAULT_RADIUS, 2))
+                        math.abs(math.atan2(
+                            mathx.cross(play.Pos, play2.Pos),
+                            math.dot(play.Pos, play2.Pos))) < DJAUTO_HIT_SWIPE_CHAIN_ANG)
                         {
                             // hit 不按满 0.022 直接转
                             play.EndTime = play.StartTime;
                             play.BindPlayOffset = j;
-                            play2.IsReserved |= true;
+                            play2.IsAssigned = true;
                             break;
                         }
                     }
@@ -746,7 +751,7 @@ namespace MajdataViewX.Managers
                         math.distancesq(play.GetEndPos(), play2.GetEntryPos()) < math.pow(DJAUTO_SWIPE_SWIPE_CHAIN_DIST, 2))
                     {
                         play.BindPlayOffset = j;
-                        play2.IsReserved |= true;
+                        play2.IsAssigned = true;
                         break;
                     }
                 }
@@ -808,9 +813,9 @@ namespace MajdataViewX.Managers
             }
 
             /// <summary>只推进单手已锁目标的状态，不做目标分配。返回值表示本帧刚从 On 释放，可在统一分配时保持连按。</summary>
-            private bool UpdateHandState(int handIdx, float time)
+            private void UpdateHandState(int handIdx, float time)
             {
-                if (hands[handIdx].Current.Type is DJAutoPlayType.NoneOrFinished) return false;
+                if (hands[handIdx].Current.Type is DJAutoPlayType.NoneOrFinished) return;
 
                 ref var hand = ref hands.ElementRef(handIdx);
                 switch (hand.State)
@@ -823,7 +828,6 @@ namespace MajdataViewX.Managers
                             {
                                 if (hand.Current.BindPlayOffset != 0)
                                 {
-                                    plays[hand.CurrentIdx] = default;
                                     hand.CurrentIdx += hand.Current.BindPlayOffset;
                                     var next = plays[hand.CurrentIdx];
                                     hand.Current = next;
@@ -835,12 +839,10 @@ namespace MajdataViewX.Managers
                                     hand.MoveEnd = hand.Current.StartTime;
                                     hand.State = DJAutoHandState.OnMovingToBoundNext;
 
-                                    return false;
+                                    break;
                                 }
                                 hand.State = DJAutoHandState.Off;
-                                plays[hand.CurrentIdx] = default;
                                 hand.Current = default;
-                                return true;
                             }
                             break;
                         }
@@ -884,10 +886,9 @@ namespace MajdataViewX.Managers
                             break;
                         }
                 }
-                return false;
             }
 
-            /// <summary>统一分配空闲手：遍历 plays 找最早"有空闲手可达"的候选，选 cost 最小手认领并标 IsReserved；最多两轮(双手)。</summary>
+            /// <summary>统一分配空闲手：遍历 plays 找最早"有空闲手可达"的候选，选 cost 最小手认领并标 IsHandClaimed；最多两轮(双手)。</summary>
             private void FindNext(float time)
             {
                 for (int round = 0; round < 2; round++)
@@ -900,7 +901,7 @@ namespace MajdataViewX.Managers
                     {
                         var p = plays[i];
                         if (p.Type is DJAutoPlayType.NoneOrFinished) continue;
-                        if (p.IsReserved) continue;            // 已认领或绑定后继，跳过
+                        if (p.IsHandClaimed || p.IsAssigned) continue; // 已被手认领，或被算法分配(绑定后继/蹭掉)，跳过
                         if (time > p.EndTime + DJAUTO_REACH_TOL) continue;
 
                         bool anyReachable = false;
@@ -926,14 +927,14 @@ namespace MajdataViewX.Managers
                 }
             }
 
-            /// <summary>空闲手认领候选：记录 idx/Current 并标 IsReserved 占用。Current 副本保留原 Type 供执行。</summary>
+            /// <summary>空闲手认领候选：记录 idx/Current 并标 IsHandClaimed 占用。Current 副本保留原 Type 供执行。</summary>
             private void ClaimPlay(int handIdx, int playIdx)
             {
                 ref var hand = ref hands.ElementRef(handIdx);
                 hand.CurrentIdx = playIdx;
                 hand.Current = plays[playIdx];
-                var p = plays[playIdx];
-                p.IsReserved |= true;
+                ref var p = ref plays.ElementRef(playIdx);
+                p.IsHandClaimed = true;
                 plays[playIdx] = p;
             }
 

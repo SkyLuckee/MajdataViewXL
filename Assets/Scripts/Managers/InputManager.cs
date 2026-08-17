@@ -22,11 +22,6 @@ namespace MajdataViewX.Managers
     public class InputManager
     {
         public const float AUTOPLAY_START_SEC = -1 * FRAME_LENGTH_SEC;
-        public const float DJAUTO_SLIDE_TAP_GUIDE_DELAY_SEC = 3 * FRAME_LENGTH_SEC;
-
-        public const float DJAUTO_SLIDE_RELEASE_DELAY_SEC = 6 * FRAME_LENGTH_SEC;
-
-
 
         public const float BUTTON_HIT_RENDER_RADIUS = 0.4f;
 
@@ -102,10 +97,6 @@ namespace MajdataViewX.Managers
         }
 
 
-
-        public void ResetState()
-        {
-        }
 
         public void OnDestroy()
         {

@@ -6,7 +6,7 @@ using MajdataViewX.Types.Notes.RenderData;
 using MajdataViewX.Types.Rendering;
 using MajdataViewX.Utils;
 using MajdataViewX.Utils.Extensions;
-using MajSimai;
+using MajdataViewX.Types.MajWs;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
@@ -151,7 +151,7 @@ namespace MajdataViewX.Managers
             _hitSwipeGroup?.Dispose();
         }
 
-        private void ConfigureRenderCapacity(SimaiChart chart)
+        private void ConfigureRenderCapacity(SimaiChartDto chart)
         {
             var noteCount = 0;
             foreach (var timing in chart.NoteTimings)
@@ -424,41 +424,12 @@ namespace MajdataViewX.Managers
             if (touchGroupJudgedCounts.IsCreated) touchGroupJudgedCounts.Dispose();
             if (touchHoldGroupTotalCounts.IsCreated) touchHoldGroupTotalCounts.Dispose();
             if (touchHoldGroupPressedCounts.IsCreated) touchHoldGroupPressedCounts.Dispose();
-
-            if (_leftHandPlays.IsCreated) _leftHandPlays.Dispose();
-            if (_rightHandPlays.IsCreated) _rightHandPlays.Dispose();
         }
 
         public void ResetState()
         {
             _prevChain.Complete();
-            taps.Clear();
-            eachLines.Clear();
-            holds.Clear();
-            slides.Clear();
-            touches.Clear();
-            touchHolds.Clear();
-            plays.Clear();
-            _djAutoTouchInfosThisTiming.Clear();
             ResetDJAutoHands();
-
-            touchGroupTotalCounts.Clear();
-            touchGroupJudgedCounts.Clear();
-            touchHoldGroupTotalCounts.Clear();
-            touchHoldGroupPressedCounts.Clear();
-            unsafe
-            {
-                if (slideAreaPool != null)
-                    UnsafeUtility.Free(slideAreaPool, Allocator.Persistent);
-                if (slidePosePool != null)
-                    UnsafeUtility.Free(slidePosePool, Allocator.Persistent);
-                slideAreaPool = null;
-                slidePosePool = null;
-            }
-            MajBurst.MultTouchHandler.Clear();
-
-            if (_leftHandPlays.IsCreated) _leftHandPlays.Dispose();
-            if (_rightHandPlays.IsCreated) _rightHandPlays.Dispose();
         }
     }
 }

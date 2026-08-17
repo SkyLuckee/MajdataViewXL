@@ -3,6 +3,7 @@ using MajdataViewX.Types.Input;
 using MajdataViewX.Types.Notes;
 using Unity.Burst;
 using Unity.Mathematics;
+using UnityEngine.UIElements;
 using static MajdataViewX.Managers.SkinManager;
 
 namespace MajdataViewX.Notes.NoteDatas
@@ -12,7 +13,8 @@ namespace MajdataViewX.Notes.NoteDatas
     {
         public float time;
         public SensorType sensor;
-        public float speed;
+        public float hspeed;
+        public readonly float speed => NoteHelper.Settings.TouchSpeed * hspeed;
         public float LastFor;
         public int sensorOrderIndex;
 
@@ -27,6 +29,10 @@ namespace MajdataViewX.Notes.NoteDatas
 
         public bool isEnd;
         public float2 centerPos;
+
+        public float wholeDuration;
+        public float moveDuration;
+        public float displayDuration;
 
         public float fanAlpha;
         public float maskProgress;
@@ -56,6 +62,10 @@ namespace MajdataViewX.Notes.NoteDatas
             fanAlpha = 0;
             maskProgress = 0;
 
+            wholeDuration = 3.209385682f * math.pow(speed, -0.9549621752f);
+            moveDuration = 0.8f * wholeDuration;
+            displayDuration = 0.2f * wholeDuration;
+
             centerPos = MajPos.GetAreaPos(sensor);
 
             fanSprite = NoteSp.TOUCH_HOLD_0;
@@ -81,7 +91,21 @@ namespace MajdataViewX.Notes.NoteDatas
             // 一开始放开时间无穷大，按下后才能重置为0，避免一开始就小于release忽略时间
             lastReleaseTimeSec = float.PositiveInfinity;
         }
+        public void Reset()
+        {
+            isEnd = default;
 
+            fanAlpha = default;
+            maskProgress = default;
+
+            isHeadJudged = default;
+            headDiff = default;
+            judgeGrade = default;
+            isHolding = default;
+            holdPercent = default;
+            playerIdleTimeSec = default;
+            lastReleaseTimeSec = float.PositiveInfinity;
+        }
         public readonly bool IsFoldable(TouchHoldData other) =>
             time == other.time &&
             sensor == other.sensor &&

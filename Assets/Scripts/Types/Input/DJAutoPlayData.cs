@@ -1,4 +1,4 @@
-﻿using MajdataViewX.Managers;
+using MajdataViewX.Managers;
 using MajdataViewX.Notes.NoteDatas;
 using MajdataViewX.Notes.SlideUtils;
 using System;
@@ -38,14 +38,22 @@ namespace MajdataViewX.Types.Input
             private init => _flag = (byte)((_flag & ~0b_0000_0001) | (value ? 0b_0000_0001 : 0));
         }
         /// <summary>
-        /// 1. FindNext 认领的散点 play 或被 BindPlayOffset 指向的绑定后继均置此位，FindNext 跳过；
-        /// 2. 执行完随 default 清除。
-        /// 3. IsAllowSkipBySwipe == true时，能被星星蹭掉
+        /// 手认领：FindNext 认领的散点 play 置此位，FindNext 跳过；ResetLoadedPlay 也用它把 ignore 之前的
+        /// play 标为忽略（保留全部数据）；运行时状态，重开/seek 时由 <see cref="NoteManager.ResetLoadedPlay"/> 重建。
         /// </summary>
-        public bool IsReserved
+        public bool IsHandClaimed
         {
             readonly get => (_flag & 0b_0000_0010) != 0;
             set => _flag = (byte)((_flag & ~0b_0000_0010) | (value ? 0b_0000_0010 : 0));
+        }
+        /// <summary>
+        /// 被算法分配：加载期由 BindPlayPatterns（绑定后继）与 BindSkippableHitsBySwipe（可被 swipe 蹭掉）置位，
+        /// 仅作加载期记录（绑定跟随仍由 BindPlayOffset 驱动）；FindNext 不再据此跳过，静态数据随 chart 重载重建。
+        /// </summary>
+        public bool IsAssigned
+        {
+            readonly get => (_flag & 0b_0000_1000) != 0;
+            set => _flag = (byte)((_flag & ~0b_0000_1000) | (value ? 0b_0000_1000 : 0));
         }
         /// <summary>
         /// 是否允许被 swipe 顺带覆盖（tap/hold）
@@ -228,7 +236,7 @@ namespace MajdataViewX.Types.Input
                 side * offset.x * sin + offset.y * cos);
         }
 
-        public float2 GetCurPos(float time)
+        public readonly float2 GetCurPos(float time)
         {
             if (Type is not DJAutoPlayType.Swipe) return Pos;
             var arrows = BindSlide->slideArrows;

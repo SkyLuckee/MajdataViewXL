@@ -6,7 +6,7 @@ using MajdataViewX.Types.Enums;
 using MajdataViewX.Types.Input;
 using MajdataViewX.Utils;
 using MajdataViewX.Utils.Extensions;
-using MajSimai;
+using MajdataViewX.Types.MajWs;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -24,14 +24,6 @@ namespace MajdataViewX.Managers
 {
     public partial class NoteManager
     {
-        public float NoteSpeed = 7f;
-        public float TouchSpeed = 7.5f;
-        public bool LegacySlideLayer = false;
-        public bool SmoothSlideAnime = true;
-        public bool MineAutoSlide = true;
-
-        public double Ignore = 0f;
-
         private readonly int[] _buttonOrderIndex = new int[BUTTON_COUNT];
         private readonly int[] _sensorOrderIndex = new int[SENSOR_COUNT];
 
@@ -44,14 +36,14 @@ namespace MajdataViewX.Managers
 
         private readonly List<NoteRegister>[] loadedTouches = new List<NoteRegister>[SENSOR_COUNT];
 
-        public unsafe void Load(SimaiChart chart)
+        public unsafe void Load(SimaiChartDto chart)
         {
             if (chart.IsEmpty) return;
             _prevChain.Complete();
 
             ConfigureRenderCapacity(chart);
 
-            // 防御性清空：正常流程下 Stop 时 ResetState 已清空，
+            // 防御性清空：正常流程下 Stop 时 ResetCur 已清空，
             // 此处防止"未 Stop 就重新 Load"导致 NativeList 累积
             taps.Clear();
             eachLines.Clear();
@@ -81,16 +73,10 @@ namespace MajdataViewX.Managers
                     loadedTouches[i] = new();
 
 
-
-
             foreach (var timing in chart.NoteTimings)
             {
-                if (timing.Timing < Ignore)
-                    LoadIgnore(timing);
-                else
-                    LoadTiming(timing);
+                LoadTiming(timing);
             }
-
 
 
 
@@ -148,11 +134,12 @@ namespace MajdataViewX.Managers
             BindSkippableHitsBySwipe();
             BindPlayPatterns();
 
+            MajBurst.MultTouchHandler.Clear();
             MajBurst.MultTouchHandler.Load(loadedTouches);
         }
 
 
-        private void CalcEach(in SimaiTimingPoint timing, out bool isNoteEach, out bool isSlideEach)
+        private void CalcEach(in SimaiTimingPointDto timing, out bool isNoteEach, out bool isSlideEach)
         {
             var noteCount = 0;
             var slideCount = 0;
@@ -182,17 +169,13 @@ namespace MajdataViewX.Managers
             isSlideEach = slideCount > 1;
         }
 
-        private void LoadIgnore(in SimaiTimingPoint timing)
-        {
-            _objectCounter.CountIgnoreNoteCountAsync(timing.Notes);
-        }
         /// <remarks>
         /// 本来isEach在isMine时应该被忽略，但实际上
         /// isEach对判定并无影响，主要取其skin的区别，
         /// 而且mine的tapline同样需要换为each line
         /// 因此全部丢进LoadSkin作特判
         /// </remarks>
-        private unsafe void LoadTiming(in SimaiTimingPoint timing)
+        private unsafe void LoadTiming(in SimaiTimingPointDto timing)
         {
             int touchStartIdx = touches.Length;
             int touchHoldStartIdx = touchHolds.Length;
@@ -279,7 +262,7 @@ namespace MajdataViewX.Managers
                 for (int i = 0; i < nonMineCount - 1; i++)
                 {
                     var s = (float)timing.Timing;
-                    var spd = NoteSpeed * timing.HSpeed;
+                    var spd = timing.HSpeed;
                     CreateEachLine(s, startPositions[i], startPositions[i + 1], spd, eachLineUsingSV);
                 }
             }
@@ -503,8 +486,10 @@ namespace MajdataViewX.Managers
                 time = time,
                 key = startPos - 1,
                 curvLength = endPos - 1,
-                speed = speed,
-                usingSV = usingSV
+                hspeed = speed,
+                usingSV = usingSV,
+
+                isEnd = true
             };
             if (eachLines.Length > 0 && eachLines[^1].IsFoldable(el))
             {
@@ -515,8 +500,8 @@ namespace MajdataViewX.Managers
         }
 
         private void LoadTap(
-            in SimaiTimingPoint timing,
-            in SimaiNote note,
+            in SimaiTimingPointDto timing,
+            in SimaiNoteDto note,
             bool isEach,
             ref int sameTapCount)
         {
@@ -525,7 +510,7 @@ namespace MajdataViewX.Managers
             {
                 Time = (float)timing.Timing,
                 Key = key,
-                Speed = NoteSpeed * timing.HSpeed,
+                HSpeed = timing.HSpeed,
                 ButtonOrderIndex = _buttonOrderIndex[(int)key]++,
                 SensorOrderIndex = _sensorOrderIndex[(int)key]++,
 
@@ -537,7 +522,9 @@ namespace MajdataViewX.Managers
                 IsEx = note.IsEx,
                 IsBreak = note.IsBreak,
                 IsMine = note.IsMine,
-                UsingSV = note.UsingSV
+                UsingSV = note.UsingSV,
+
+                IsEnd = true
             };
             sameTapCount = taps.Length > 0 && taps[^1].IsFoldable(tap)
                 ? sameTapCount + 1
@@ -550,7 +537,7 @@ namespace MajdataViewX.Managers
             taps.Add(tap);
 
             if (!note.IsMine)
-                switch (NoteHelper.AutoPlayMode)
+                switch (NoteHelper.Settings.AutoPlayMode)
                 {
                     case AutoPlayMode.DJAutoButton:
                         plays.Add(new DJAutoPlayData(
@@ -572,8 +559,8 @@ namespace MajdataViewX.Managers
         }
 
         private void LoadHold(
-            in SimaiTimingPoint timing,
-            in SimaiNote note,
+            in SimaiTimingPointDto timing,
+            in SimaiNoteDto note,
             bool isEach,
             ref int sameHoldCount)
         {
@@ -582,7 +569,7 @@ namespace MajdataViewX.Managers
             {
                 time = (float)timing.Timing,
                 Key = key,
-                speed = NoteSpeed * timing.HSpeed,
+                hspeed = timing.HSpeed,
                 LastFor = (float)note.HoldTime,
                 ButtonOrderIndex = _buttonOrderIndex[(int)key]++,
                 SensorOrderIndex = _sensorOrderIndex[(int)key]++,
@@ -591,7 +578,9 @@ namespace MajdataViewX.Managers
                 isEx = note.IsEx,
                 isBreak = note.IsBreak,
                 isMine = note.IsMine,
-                usingSV = note.UsingSV
+                usingSV = note.UsingSV,
+
+                isEnd = true
             };
             sameHoldCount = holds.Length > 0 && holds[^1].IsFoldable(hold)
                 ? sameHoldCount + 1
@@ -604,7 +593,7 @@ namespace MajdataViewX.Managers
             holds.Add(hold);
 
             if (!note.IsMine)
-                switch (NoteHelper.AutoPlayMode)
+                switch (NoteHelper.Settings.AutoPlayMode)
                 {
                     case AutoPlayMode.DJAutoButton:
                         plays.Add(new DJAutoPlayData(
@@ -626,8 +615,8 @@ namespace MajdataViewX.Managers
         }
 
         private void LoadTouch(
-            in SimaiTimingPoint timing,
-            in SimaiNote note,
+            in SimaiTimingPointDto timing,
+            in SimaiNoteDto note,
             bool isEach,
             ref int sameTouchCount)
         {
@@ -636,7 +625,7 @@ namespace MajdataViewX.Managers
             {
                 time = (float)timing.Timing,
                 sensor = sensor,
-                speed = TouchSpeed * timing.HSpeed,
+                hspeed = timing.HSpeed,
                 sensorOrderIndex = _sensorOrderIndex[(int)sensor]++,
 
                 isHanabi = note.IsHanabi,
@@ -644,7 +633,9 @@ namespace MajdataViewX.Managers
                 isEx = note.IsEx,
                 isBreak = note.IsBreak,
                 isMine = note.IsMine,
-                usingSV = note.UsingSV
+                usingSV = note.UsingSV,
+
+                isEnd = true
             };
             sameTouchCount = touches.Length > 0 && touches[^1].IsFoldable(touch)
                 ? sameTouchCount + 1
@@ -663,7 +654,7 @@ namespace MajdataViewX.Managers
             });
 
             if (!note.IsMine &&
-                NoteHelper.AutoPlayMode is AutoPlayMode.DJAutoButton or AutoPlayMode.DJAutoSensor)
+                NoteHelper.Settings.AutoPlayMode is AutoPlayMode.DJAutoButton or AutoPlayMode.DJAutoSensor)
                 _djAutoTouchInfosThisTiming.Add(new DJAutoTouchInfo
                 {
                     Sensor = touch.sensor,
@@ -674,8 +665,8 @@ namespace MajdataViewX.Managers
         }
 
         private void LoadTouchHold(
-            in SimaiTimingPoint timing,
-            in SimaiNote note,
+            in SimaiTimingPointDto timing,
+            in SimaiNoteDto note,
             bool isEach,
             ref int sameTouchHoldCount)
         {
@@ -684,7 +675,7 @@ namespace MajdataViewX.Managers
             {
                 time = (float)timing.Timing,
                 sensor = sensor,
-                speed = TouchSpeed * timing.HSpeed,
+                hspeed = timing.HSpeed,
                 sensorOrderIndex = _sensorOrderIndex[(int)sensor]++,
                 LastFor = (float)note.HoldTime,
 
@@ -693,7 +684,9 @@ namespace MajdataViewX.Managers
                 isEx = note.IsEx,
                 isBreak = note.IsBreak,
                 isMine = note.IsMine,
-                usingSV = note.UsingSV
+                usingSV = note.UsingSV,
+
+                isEnd = true
             };
             sameTouchHoldCount = touchHolds.Length > 0 && touchHolds[^1].IsFoldable(th)
                 ? sameTouchHoldCount + 1
@@ -706,7 +699,7 @@ namespace MajdataViewX.Managers
             touchHolds.Add(th);
 
             if (!note.IsMine &&
-                NoteHelper.AutoPlayMode is AutoPlayMode.DJAutoButton or AutoPlayMode.DJAutoSensor)
+                NoteHelper.Settings.AutoPlayMode is AutoPlayMode.DJAutoButton or AutoPlayMode.DJAutoSensor)
                 _djAutoTouchInfosThisTiming.Add(new DJAutoTouchInfo
                 {
                     Sensor = th.sensor,
@@ -717,8 +710,8 @@ namespace MajdataViewX.Managers
         }
 
         private string LoadSlideChain(
-            in SimaiTimingPoint timing,
-            in SimaiNote note,
+            in SimaiTimingPointDto timing,
+            in SimaiNoteDto note,
             bool isNoteEach,
             bool isSlideEach,
             string lastContent,
@@ -735,7 +728,7 @@ namespace MajdataViewX.Managers
                 {
                     Time = (float)timing.Timing,
                     Key = (SensorType)(note.StartPosition - 1),
-                    Speed = NoteSpeed * timing.HSpeed,
+                    HSpeed = timing.HSpeed,
                     ButtonOrderIndex = _buttonOrderIndex[note.StartPosition - 1]++,
                     SensorOrderIndex = _sensorOrderIndex[note.StartPosition - 1]++,
                     IsStar = !note.IsTapHeadSlide,
@@ -746,6 +739,8 @@ namespace MajdataViewX.Managers
                     IsBreak = note.IsBreak,
                     IsMine = note.IsMine,
                     UsingSV = note.UsingSV,
+
+                    IsEnd = true
                 };
                 sameTapCount = taps.Length > 0 && taps[^1].IsFoldable(starTap)
                     ? sameTapCount + 1
@@ -758,7 +753,7 @@ namespace MajdataViewX.Managers
                 taps.Add(starTap);
 
                 if (!note.IsMine)
-                    switch (NoteHelper.AutoPlayMode)
+                    switch (NoteHelper.Settings.AutoPlayMode)
                     {
                         case AutoPlayMode.DJAutoButton:
                             plays.Add(new DJAutoPlayData(
@@ -801,8 +796,7 @@ namespace MajdataViewX.Managers
                     startPos = noteContent[0] - '0',
                     endPos = noteContent[2] - '0',
                     LastFor = (float)note.SlideTime,
-                    speed = NoteSpeed * timing.HSpeed,
-                    sensorOrderIndex = _sensorOrderIndex[note.StartPosition - 1],
+                    hspeed = timing.HSpeed,
 
                     isWifi = true,
 
@@ -825,16 +819,15 @@ namespace MajdataViewX.Managers
                     isEx = false,
                     isBreak = note.IsSlideBreak,
                     isMine = note.IsMineSlide,
-                    smoothSlideAnime = SmoothSlideAnime,
-                    legacySlideLayer = LegacySlideLayer,
-                    mineAutoSlide = MineAutoSlide,
+
+                    isEnd = true
                 };
                 ApplySlideFolding(ref slide, noteContent, lastContent, ref sameSlideCount);
                 slide.Init();
                 slides.Add(slide);
 
                 if (!note.IsMine &&
-                    NoteHelper.AutoPlayMode is AutoPlayMode.DJAutoButton or AutoPlayMode.DJAutoSensor &&
+                    NoteHelper.Settings.AutoPlayMode is AutoPlayMode.DJAutoButton or AutoPlayMode.DJAutoSensor &&
                     sameSlideCount == 1) // slide跟别人一样就不用鸟
                     unsafe
                     {
@@ -900,8 +893,9 @@ namespace MajdataViewX.Managers
                     startPos = startPos,
                     endPos = endPos,
                     LastFor = (float)note.SlideTime,
-                    speed = NoteSpeed * timing.HSpeed,
-                    sensorOrderIndex = _sensorOrderIndex[note.StartPosition - 1],
+                    hspeed = timing.HSpeed,
+
+                    isWifi = false,
 
                     judgeQueueOffset = areaPoolIndex,
                     judgeQueueCount = judgeQueueCount,
@@ -918,16 +912,15 @@ namespace MajdataViewX.Managers
                     isEx = false,
                     isBreak = note.IsSlideBreak,
                     isMine = note.IsMineSlide,
-                    smoothSlideAnime = SmoothSlideAnime,
-                    legacySlideLayer = LegacySlideLayer,
-                    mineAutoSlide = MineAutoSlide,
+
+                    isEnd = true
                 };
                 ApplySlideFolding(ref slide, noteContent, lastContent, ref sameSlideCount);
                 slide.Init();
                 slides.Add(slide);
 
                 if (!note.IsMine &&
-                    NoteHelper.AutoPlayMode is AutoPlayMode.DJAutoButton or AutoPlayMode.DJAutoSensor &&
+                    NoteHelper.Settings.AutoPlayMode is AutoPlayMode.DJAutoButton or AutoPlayMode.DJAutoSensor &&
                     sameSlideCount == 1) // slide跟别人一样就不用鸟
                     unsafe
                     {
@@ -967,7 +960,7 @@ namespace MajdataViewX.Managers
             }
         }
 
-        private void OnNoteLoadFailed(SimaiNote note, Exception e)
+        private void OnNoteLoadFailed(SimaiNoteDto note, Exception e)
         {
             var sb = new StringBuilder();
             sb.AppendLine($"[Note Load Failed] Exception: {e.Message}");
@@ -980,11 +973,11 @@ namespace MajdataViewX.Managers
             sb.AppendLine("Note Properties:");
             try
             {
-                foreach (var prop in typeof(SimaiNote).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+                foreach (var prop in typeof(SimaiNoteDto).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
                 {
                     sb.AppendLine($"  {prop.Name}: {prop.GetValue(note)}");
                 }
-                foreach (var field in typeof(SimaiNote).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+                foreach (var field in typeof(SimaiNoteDto).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
                 {
                     sb.AppendLine($"  {field.Name}: {field.GetValue(note)}");
                 }
@@ -999,7 +992,66 @@ namespace MajdataViewX.Managers
         }
 
 
+        public void ResetLoadedNote(double ignore)
+        {
+            //重置一下sensor/button index
+            MajBurst.InputData.ResetState();
+            for (int i = 0; i < taps.Length; i++)
+            {
+                ref var tap = ref taps.ElementRef(i);
+                if (tap.Time < ignore)
+                {
+                    tap.IsEnd = true;
+                    MajBurst.InputData.NextTapHold(tap.Key);
+                }
+                else tap.Reset();
+            }
+            for (int i = 0; i < holds.Length; i++)
+            {
+                ref var hold = ref holds.ElementRef(i);
+                if (hold.time < ignore)
+                {
+                    hold.isEnd = true;
+                    MajBurst.InputData.NextTapHold(hold.Key);
+                }
+                else hold.Reset();
+            }
+            for (int i = 0; i < slides.Length; i++)
+            {
+                ref var slide = ref slides.ElementRef(i);
+                if (slide.shootTime < ignore) slide.isEnd = true;
+                else slide.Reset();
+            }
+            for (int i = 0; i < touches.Length; i++)
+            {
+                ref var touch = ref touches.ElementRef(i);
+                if (touch.time < ignore)
+                {
+                    touch.isEnd = true;
+                    MajBurst.InputData.NextTouch(touch.sensor);
+                }
+                else touch.Reset();
+            }
+            for (int i = 0; i < touchHolds.Length; i++)
+            {
+                ref var th = ref touchHolds.ElementRef(i);
+                if (th.time < ignore)
+                {
+                    th.isEnd = true;
+                    MajBurst.InputData.NextTouch(th.sensor);
+                }
+                else th.Reset();
+            }
+        }
 
+        public void ResetLoadedPlay(double ignore)
+        {
+            for (int i = 0; i < plays.Length; i++)
+            {
+                ref var play = ref plays.ElementRef(i);
+                play.IsHandClaimed = false;
+            }
+        }
 
 
 

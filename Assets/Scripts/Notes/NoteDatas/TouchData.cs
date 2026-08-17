@@ -12,7 +12,8 @@ namespace MajdataViewX.Notes.NoteDatas
     {
         public float time;
         public SensorType sensor;
-        public float speed;
+        public float hspeed;
+        public readonly float speed => NoteHelper.Settings.TouchSpeed * hspeed;
         public int sensorOrderIndex;
 
         public bool isHanabi;
@@ -82,6 +83,17 @@ namespace MajdataViewX.Notes.NoteDatas
                     pointSprite = NoteSp.TOUCH_POINT_MINE;
                 }
             }
+        }
+
+        public void Reset()
+        {
+            isAppeared = default;
+            isEnd = default;
+
+            fanAlpha = default;
+            isJudged = default;
+            judgeGrade = default;
+            diff = default;
         }
 
         public readonly bool IsFoldable(TouchData other) =>

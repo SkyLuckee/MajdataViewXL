@@ -23,6 +23,8 @@ namespace MajdataViewX.Managers
         [SerializeField]
         private Material circledBgMaterial;
 
+        public bool ResizeBg;
+
         private RawImage jacketImage;
         private GameObject songDetail;
         private static readonly int ShowHash = Animator.StringToHash("show");
@@ -32,8 +34,8 @@ namespace MajdataViewX.Managers
 
         private float smoothRDelta;
 
-        const float CIRCLED_SCALE_X = 1.1f;
-        const float FULLSCREEN_SCALE_X = 1.777f;
+        private const float CIRCLED_SCALE_X = 1.1f;
+        private const float FULLSCREEN_SCALE_X = 1.777f;
 
         private Sprite? Bg { get; set; }
         private string? VideoUrl { get; set; }
@@ -44,6 +46,7 @@ namespace MajdataViewX.Managers
         public bool IsVideoLoaded => !hasVideo || !string.IsNullOrWhiteSpace(VideoUrl);
 
         private static Sprite? _emptySprite;
+        bool _videoPaused;
 
         private void Awake()
         {
@@ -65,6 +68,13 @@ namespace MajdataViewX.Managers
 
         private void Update()
         {
+            if (hasVideo && _videoPaused)
+            {
+                videoPlayer.time = _timeProvider.AudioTime;
+                videoPlayer.Play();
+                videoPlayer.Pause();
+                return;
+            }
             var delta = (float)videoPlayer.clockTime - _timeProvider.AudioTime;
             smoothRDelta += (Time.unscaledDeltaTime - smoothRDelta) * 0.01f;
             if (_timeProvider.AudioTime < 0) return;
@@ -128,7 +138,7 @@ namespace MajdataViewX.Managers
             VideoUrl = "file://" + path;
         }
 
-        public void ShowVideo(bool resizeBg)
+        public void ShowVideo()
         {
             if (!hasVideo) return;
 
@@ -145,9 +155,10 @@ namespace MajdataViewX.Managers
                 while (!videoPlayer.isPrepared) yield return new WaitForEndOfFrame();
                 videoPlayer.Play();
                 videoPlayer.time = _timeProvider.AudioTime;
+                _videoPaused = false;
 
                 var scale = videoPlayer.height / (float)videoPlayer.width;
-                if (resizeBg)
+                if (ResizeBg)
                 {
                     gameObject.transform.localScale = new Vector3(FULLSCREEN_SCALE_X, FULLSCREEN_SCALE_X * scale);
                     spriteRender.material = fullscreenBgMaterial;
@@ -164,17 +175,14 @@ namespace MajdataViewX.Managers
         {
             if (!hasVideo) return;
             videoPlayer.Pause();
+            _videoPaused = true;
         }
 
-        public void ContinueVideo()
-        {
-            if (!hasVideo) return;
-            videoPlayer.Play();
-        }
 
         public void ResetState()
         {
             videoPlayer.Stop();
+            _videoPaused = false;
             // 销毁上一曲背景图(Texture2D/Sprite)，避免滞留到下次 LoadBG
             DestroyLoadedBackground();
             gameObject.transform.localScale = new Vector3(CIRCLED_SCALE_X, CIRCLED_SCALE_X, CIRCLED_SCALE_X);

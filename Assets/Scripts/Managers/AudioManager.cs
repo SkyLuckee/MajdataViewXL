@@ -5,7 +5,7 @@ using MajdataViewX.Base;
 using MajdataViewX.Types.Audio;
 using MajdataViewX.Types.MajSetting;
 using MajdataViewX.Utils.Extensions;
-using MajSimai;
+using MajdataViewX.Types.MajWs;
 using ManagedBass;
 using System;
 using System.Collections.Generic;
@@ -33,8 +33,6 @@ namespace MajdataViewX.Managers
         // TrackSampleData 仅导出(Record)模式混音用，普通播放无需加载，
         // 故 IsTrackLoaded 只取决于 Bass 流是否就绪
         public bool IsTrackLoaded => TrackSample != null;
-        public bool IsTrackPlaying => TrackSample != null && TrackSample.IsPlaying;
-        public double TrackCurrentSec => TrackSample != null ? TrackSample.CurrentSec : 0;
 
         //answer SFX gen
         private readonly List<AnswerTimingPoint> answerTimingPoints = new();
@@ -377,9 +375,9 @@ namespace MajdataViewX.Managers
 
         //Sfx control
 
-        public void GenerateAnswerSFX(SimaiChart chart, double ignoreOffset, int clockCount = 0)
+        public void GenerateAnswerSFX(SimaiChartDto chart, int clockCount = 0)
         {
-            if (chart.NoteTimings.IsEmpty) return;
+            if (chart.NoteTimings.Length == 0) return;
 
             //Generate ClockSounds
             var firstBpm = chart.NoteTimings[0].Bpm;
@@ -404,7 +402,6 @@ namespace MajdataViewX.Managers
             foreach (var timingPoint in chart.NoteTimings)
             {
                 var startTiming = (float)timingPoint.Timing;
-                if (startTiming < ignoreOffset) continue;
 
                 if (!timingPoint.Notes.All              //无头别叫
                                 (o => o.Type is SimaiNoteType.Slide
@@ -439,6 +436,15 @@ namespace MajdataViewX.Managers
                         lastAddedTime = t;
                     }
                 }
+            }
+        }
+
+        public void ResetAnswerSFX(double ignoreOffset)
+        {
+            foreach (var tp in answerTimingPoints)
+            {
+                if (tp.Timing < ignoreOffset) tp.IsPlayed = true;
+                else tp.IsPlayed = false;
             }
         }
 
@@ -781,7 +787,7 @@ namespace MajdataViewX.Managers
             {
                 Timing = timing;
                 IsClock = isClock;
-                IsPlayed = false;
+                IsPlayed = true; //先设为true，等reset
             }
         }
 

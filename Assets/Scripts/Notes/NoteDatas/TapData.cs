@@ -12,7 +12,8 @@ namespace MajdataViewX.Notes.NoteDatas
         // args TODO:REQUIRED
         public float Time { get; init; }
         public SensorType Key { get; init; }
-        public float Speed { get; init; }
+        public float HSpeed { get; init; }
+        public readonly float Speed => NoteHelper.Settings.TapSpeed * HSpeed;
         public int ButtonOrderIndex { get; init; }
         public int SensorOrderIndex { get; init; }
 
@@ -141,6 +142,15 @@ namespace MajdataViewX.Notes.NoteDatas
             //if (IsEach && !IsMine)
             //    LineSprite = NoteSp.LINE_EACH;
             // 高个蛋。。。并非如此
+        }
+
+        public void Reset()
+        {
+            IsEnd = default;
+
+            IsJudged = default;
+            JudgeGrade = default;
+            Diff = default;
         }
 
         public readonly bool IsFoldable(TapData other) =>

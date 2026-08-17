@@ -4,7 +4,8 @@ using MajdataViewX.Types.Enums;
 using MajdataViewX.Types.Notes;
 using MajdataViewX.Types.Notes.RenderData;
 using MajdataViewX.Utils.Extensions;
-using MajSimai;
+using MajdataViewX.Types.MajWs;
+using System;
 using System.Threading;
 using Unity.Burst;
 using Unity.Collections;
@@ -39,12 +40,131 @@ namespace MajdataViewX.Notes.Updaters
 
         public void Execute(int index)
         {
+            if (!TimeData.IsStart)
+            {
+                SeeOnlyUpdate(holds[index], index);
+                return;
+            }
             ref var hold = ref holds.ElementRef(index);
             TransformUpdate(ref hold, index);
             AutoplayUpdate(ref hold);
             CheckUpdate(ref hold);
         }
 
+        private void SeeOnlyUpdate(HoldData hold, int index)
+        {
+            if (hold.isFolded) return;
+
+            // ---- body ----
+            var headTiming = hold.usingSV
+                ? TimeData.FakeNoteTime - TimeData.GetPositionAtTime(hold.time)
+                : TimeData.NoteTime - hold.time;
+            var headDistance = headTiming * hold.speed + 4.8f;
+            var clampedDistance = math.max(headDistance, 1.225f);
+
+            var destScale = math.min(headDistance * 0.4f + 0.51f, 1f);
+            var lineScale = math.min(clampedDistance / 4.8f, 1f);
+
+            // ---- Tail (hold end) ----
+            var tailTiming = hold.usingSV
+                ? TimeData.FakeNoteTime - TimeData.GetPositionAtTime(hold.time + hold.LastFor)
+                : TimeData.NoteTime - (hold.time + hold.LastFor);
+            var tailDistance = tailTiming * hold.speed + 4.8f;
+
+            if (tailTiming > 0) return;
+
+            // ---- Invisible ----
+            if (destScale < 0f) return;
+
+            // sortTime (30 bits): [19 bits: time (87 mins wrap)] + [11 bits: index tie-breaker (2048 wrap)]
+            var timePart = ((uint)math.max(0f, hold.time * 100f)) & 0x7FFFF;
+            var sortTime = ((timePart << 11) | (uint)(index & 0x7FF)) & 0x3FFFFFFF;
+
+            // show line
+            if (destScale > 0.3f)
+            {
+                var lineIdx = Interlocked.Increment(ref *TapLinesWriteCountPtr) - 1;
+                tapLinesRender[lineIdx] = new LineRenderData
+                {
+                    angRad = math.radians(hold.ang),
+                    scale = lineScale,
+                    spriteId = hold.lineSprite,
+                    sort = sortTime,
+                };
+            }
+
+            // ---- body ----
+            if (headDistance < 1.225f)
+            {
+                NoteHelper.GetPosFromDistance(1.225f, hold.Key, out var pos);
+                hold.pos = pos;
+                hold.scale = destScale;
+                hold.stretchY = -0.58f; //原图带有一定高度
+                hold.holdEndScale = 0f;
+            }
+            else
+            {
+                var headClamped = math.min(headDistance, 4.8f);
+                var tailClamped = math.clamp(tailDistance, 1.225f, 4.8f);
+                var barLen = math.max(headClamped - tailClamped, 0f);
+                var midDist = (headClamped + tailClamped) * 0.5f;
+
+                NoteHelper.GetPosFromDistance(midDist, hold.Key, out var pos);
+                hold.pos = pos;
+                hold.scale = 1;
+                hold.stretchY = barLen - 0.58f;
+
+                if (tailDistance >= 1.225f)
+                {
+                    NoteHelper.GetPosFromDistance(math.min(tailDistance, 4.8f), hold.Key, out var endPos);
+                    hold.holdEndPos = endPos;
+                    hold.holdEndScale = 1f;
+                }
+                else
+                {
+                    hold.holdEndScale = 0f;
+                }
+            }
+
+            // ---- Write body ----
+            {
+                var noteIdx = Interlocked.Increment(ref *NotesWriteCountPtr) - 1;
+                notesRender[noteIdx] = new NotesRenderData
+                {
+                    pos = hold.pos,
+                    angRad = math.radians(hold.ang),
+                    scale = hold.scale,
+                    stretchY = hold.stretchY,
+                    spriteId = hold.bodySprite,
+                    color = new float4(1, 1, 1, 1),
+                    brightness = 1f,
+                    exSprite = hold.isEx ? hold.exSprite : 0u,
+                    exColor = hold.exColor,
+                    sliceBorder = hold.sliceBorder,
+                    sort = sortTime,
+                };
+            }
+
+            // ---- Write holdEnd
+            if (hold.holdEndScale > 0f)
+            {
+                var endIdx = Interlocked.Increment(ref *NotesWriteCountPtr) - 1;
+                notesRender[endIdx] = new NotesRenderData
+                {
+                    pos = hold.holdEndPos,
+                    angRad = math.radians(hold.ang),
+                    scale = 1f,
+                    stretchY = 0,
+                    spriteId = hold.endSprite,
+                    color = new float4(1, 1, 1, 1),
+                    brightness = 1f,
+                    exSprite = 0,
+                    exColor = float4.zero,
+                    sliceBorder = float2.zero,
+                    sort = sortTime,
+                };
+            }
+        }
         private void TransformUpdate(ref HoldData hold, int index)
         {
             if (hold.isFolded) return;
@@ -220,12 +340,12 @@ namespace MajdataViewX.Notes.Updaters
         private void AutoplayUpdate(ref HoldData hold)
         {
             if (hold.isEnd) return;
-            if (NoteHelper.AutoPlayMode is AutoPlayMode.Disable) return;
+            if (NoteHelper.Settings.AutoPlayMode is AutoPlayMode.Disable) return;
 
             var timing = TimeData.NoteTime - hold.time;
             if (timing < InputManager.AUTOPLAY_START_SEC) return;
 
-            switch (NoteHelper.AutoPlayMode)
+            switch (NoteHelper.Settings.AutoPlayMode)
             {
                 case AutoPlayMode.Enable:
                     if (!hold.isHeadJudged)

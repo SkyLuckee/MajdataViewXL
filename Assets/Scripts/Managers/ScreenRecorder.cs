@@ -11,7 +11,6 @@ using static MajdataViewX.Base.MajCtx;
 
 namespace MajdataViewX.Managers
 {
-
     public class ScreenRecorder : MonoBehaviour
     {
         private const string EncoderDllName = "RenderingOut";
@@ -40,7 +39,6 @@ namespace MajdataViewX.Managers
         [DllImport(EncoderDllName, CallingConvention = CallingConvention.StdCall)]
         private static extern void video_encoder_free(IntPtr encoder);
 
-        Text errText;
 
         public bool IsRecording { get; private set; }
 
@@ -49,10 +47,6 @@ namespace MajdataViewX.Managers
             _screenRecorder = this;
         }
 
-        private void Start()
-        {
-            errText = GameObject.Find("ErrText").GetComponent<Text>();
-        }
 
         public async UniTask StartRecording(string maidataPath,
             int fps, ExportQuality quality, [CanBeNull] Action onStart = null)
@@ -73,24 +67,18 @@ namespace MajdataViewX.Managers
             IsRecording = false;
         }
 
-        public void ResetState()
-        {
-            StopRecording();
-            errText.text = string.Empty;
-        }
-
         private async UniTask CaptureScreen(string maidataPath,
             int fps, ExportQuality quality, [CanBeNull] Action onStart = null)
         {
             if (fps <= 0)
             {
-                errText.text = "Encoding cannot start: Output frame rate must be greater than zero.";
+                _wsServer.Error("Encoding cannot start: Output frame rate must be greater than zero.");
                 return;
             }
 
             if (Screen.width % 2 != 0 || Screen.height % 2 != 0)
             {
-                errText.text = $"Encoding cannot start: Resolution width and height must be even numbers. Current: {Screen.width}x{Screen.height}.";
+                _wsServer.Error($"Encoding cannot start: Resolution width and height must be even numbers. Current: {Screen.width}x{Screen.height}.");
                 return;
             }
 
@@ -165,7 +153,7 @@ namespace MajdataViewX.Managers
             catch (Exception e)
             {
                 Debug.LogException(e);
-                errText.text = $"Encoding failed: {e.Message}";
+                _wsServer.Error(e);
             }
             finally
             {
@@ -178,7 +166,7 @@ namespace MajdataViewX.Managers
                 {
                     outputSucceeded = false;
                     Debug.LogException(ex);
-                    errText.text = $"Finalizing the recording failed: {ex.Message}";
+                    _wsServer.Error(ex);
                 }
 
                 _audioManager.ReleaseRecordingAudio();

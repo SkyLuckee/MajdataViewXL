@@ -36,6 +36,7 @@ namespace MajdataViewX.Notes.NoteDatas
         public float holdEndScale;
 
         public NoteSp bodySprite;
+        public NoteSp _bodySpriteCache;
         public NoteSp endSprite;
         public NoteSp lineSprite;
         public NoteSp exSprite;
@@ -87,9 +88,8 @@ namespace MajdataViewX.Notes.NoteDatas
                 exColor = Ex_Mine;
             }
 
-            // Each Tap Line优先级高于break低于mine
-            if (isEach && !isMine)
-                lineSprite = NoteSp.LINE_EACH;
+            // 缓存下来，重置要重置回去
+            _bodySpriteCache = bodySprite;
 
             // 一开始放开时间无穷大，按下后才能重置为0，避免一开始就小于release忽略时间
             lastReleaseTimeSec = float.PositiveInfinity;
@@ -115,6 +115,8 @@ namespace MajdataViewX.Notes.NoteDatas
             holdPercent = default;
             playerIdleTimeSec = default;
             lastReleaseTimeSec = float.PositiveInfinity;
+
+            bodySprite = _bodySpriteCache;
         }
 
         public readonly bool IsFoldable(HoldData other) =>

@@ -131,10 +131,15 @@ namespace MajdataViewX.Types.Input
         //public readonly float EndTime;
 
         /// <summary>
+        /// 获取到slide arrows的指针之前先存索引，然后统一赋值，防止指针悬置
+        /// </summary>
+        [FieldOffset(24)]
+        public readonly int BindSlideIndex;
+        /// <summary>
         /// 直接负责获取到slide arrows的指针
         /// </summary>
         [FieldOffset(24)]
-        public readonly SlideData* BindSlide;
+        public SlideData* BindSlide;
 
 
 
@@ -159,13 +164,13 @@ namespace MajdataViewX.Types.Input
         /// Swipe类型Play
         /// </summary>
         public DJAutoPlayData(
-            SlideData* bindingSlide,
+            int bindingSlideIndex,
             float radius, float startTime, float endTime,
             bool isWifi, sbyte wifiSide = -1)
         {
             this = default;
             Type = DJAutoPlayType.Swipe;
-            BindSlide = bindingSlide;
+            BindSlideIndex = bindingSlideIndex;
             Radius = radius;
             StartTime = startTime;
             EndTime = endTime;

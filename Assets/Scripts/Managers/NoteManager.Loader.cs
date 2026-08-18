@@ -75,17 +75,6 @@ namespace MajdataViewX.Managers
             // DJAuto touch 双圆缓存：NativeHashMap 支持动态扩容，随 Load 复用，每次加载前清空即可
             _touchComboCache.Clear();
 
-            // plays 的 BindSlide 是指向 slides 缓冲的裸指针（LoadSlideChain 里 GetUnsafeReadOnlyPtr 捕获）：
-            // 循环内 slides.Add 一旦触发扩容（初始容量 1024）且缓冲搬迁，之前生成的 play 指针就悬垂，
-            // 之后 ComputeHandCost/GetEndPos/GetEntryPos 等解引用会偶发空引用/访问冲突。
-            // 按谱面 slide 总数预分配容量，保证循环内不再扩容、指针稳定。
-            var slideCount = 0;
-            foreach (var timing in chart.NoteTimings)
-                foreach (var note in timing.Notes)
-                    if (note.Type == SimaiNoteType.Slide)
-                        slideCount++;
-            if (slideCount > slides.Capacity)
-                slides.Capacity = slideCount;
 
 
             foreach (var timing in chart.NoteTimings)
@@ -115,6 +104,15 @@ namespace MajdataViewX.Managers
                 slide.judgeQueueR = slideAreaPool + slide.judgeQueueROffset;
                 slide.slideArrows = slidePosePool + slide.slideArrowsOffset;
             }
+            for (var i = 0; i < plays.Length; i++)
+            {
+                if (plays[i].Type is DJAutoPlayType.Swipe)
+                {
+                    ref var play = ref plays.ElementRef(i);
+                    play.BindSlide = slides.GetUnsafeReadOnlyPtr() + play.BindSlideIndex;
+                }
+            }
+
 
             var cur1 = 0;
             foreach (var areas in loadedSlideAreaArrays)
@@ -847,16 +845,15 @@ namespace MajdataViewX.Managers
                     unsafe
                     {
                         // wifi 双手：发射两个 play(side -1/+1)，FindNext 按偏移后中点就近分配，无强制左绑左右绑右
-                        var slidePtr = slides.GetUnsafeReadOnlyPtr() + slides.Length - 1;
                         plays.Add(new DJAutoPlayData(
-                            slidePtr,
+                            slides.Length - 1,
                             DJAUTO_WIFI_RADIUS,
                             slide.shootTime,
                             slide.shootTime + slide.LastFor,
                             isWifi: true,
                             wifiSide: -1));
                         plays.Add(new DJAutoPlayData(
-                            slidePtr,
+                            slides.Length - 1,
                             DJAUTO_WIFI_RADIUS,
                             slide.shootTime,
                             slide.shootTime + slide.LastFor,
@@ -940,7 +937,7 @@ namespace MajdataViewX.Managers
                     unsafe
                     {
                         plays.Add(new DJAutoPlayData(
-                            slides.GetUnsafeReadOnlyPtr() + slides.Length - 1,
+                            slides.Length - 1,
                             DJAUTO_HAND_RADIUS,
                             slide.shootTime,
                             slide.shootTime + slide.LastFor,
@@ -1034,7 +1031,7 @@ namespace MajdataViewX.Managers
             for (int i = 0; i < slides.Length; i++)
             {
                 ref var slide = ref slides.ElementRef(i);
-                if (slide.shootTime < ignore) slide.isEnd = true;
+                if (slide.tapTime < ignore) slide.isEnd = true;
                 else slide.Reset();
             }
             for (int i = 0; i < touches.Length; i++)

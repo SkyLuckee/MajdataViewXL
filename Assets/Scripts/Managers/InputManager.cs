@@ -21,7 +21,7 @@ namespace MajdataViewX.Managers
 {
     public class InputManager
     {
-        public const float AUTOPLAY_START_SEC = -1 * FRAME_LENGTH_SEC;
+        public const float AUTOPLAY_START_SEC = 0f;
 
         public const float BUTTON_HIT_RENDER_RADIUS = 0.4f;
 

@@ -379,9 +379,12 @@ namespace MajdataViewX.Managers
 
         public void GenerateAnswerSFX(SimaiChart chart, int clockCount = 0)
         {
-            if (chart.NoteTimings.IsEmpty) return;
-
             //Generate ClockSounds
+            if (chart.NoteTimings.IsEmpty)
+            {
+                answerTimingPoints.Clear();
+                return;
+            }
             var firstBpm = chart.NoteTimings[0].Bpm;
 
             lock (answerSfxLock)

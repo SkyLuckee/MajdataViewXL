@@ -38,10 +38,7 @@ namespace MajdataViewX.Managers
 
         public unsafe void Load(SimaiChart chart)
         {
-            if (chart.IsEmpty) return;
             _prevChain.Complete();
-
-            ConfigureRenderCapacity(chart);
 
             // 防御性清空：正常流程下 Stop 时 ResetCur 已清空，
             // 此处防止"未 Stop 就重新 Load"导致 NativeList 累积
@@ -58,6 +55,8 @@ namespace MajdataViewX.Managers
             touchHoldGroupTotalCounts.Clear();
             touchHoldGroupPressedCounts.Clear();
 
+            if (chart.IsEmpty) return; //涉及内存清空的就不干了没必要
+
             areaPoolIndex = 0;
             posePoolIndex = 0;
             Array.Fill(_buttonOrderIndex, 0);
@@ -72,9 +71,8 @@ namespace MajdataViewX.Managers
                 else
                     loadedTouches[i] = new();
 
-            // DJAuto touch 双圆缓存：NativeHashMap 支持动态扩容，随 Load 复用，每次加载前清空即可
-            _touchComboCache.Clear();
 
+            ConfigureRenderCapacity(chart);
 
 
             foreach (var timing in chart.NoteTimings)

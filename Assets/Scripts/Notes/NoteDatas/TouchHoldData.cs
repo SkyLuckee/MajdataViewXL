@@ -72,6 +72,10 @@ namespace MajdataViewX.Notes.NoteDatas
             pointSprite = NoteSp.TOUCH_POINT;
             _borderOnSpriteCache = borderSprite = NoteSp.TOUCH_HOLD_BORDER;
 
+            if (isEach)
+            {
+                pointSprite = NoteSp.TOUCH_POINT_EACH;
+            }
             if (isBreak)
             {
                 fanSprite = NoteSp.TOUCH_HOLD_BREAK_0;

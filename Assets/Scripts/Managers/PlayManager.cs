@@ -251,6 +251,8 @@ namespace MajdataViewX.Managers
                 _noteManager.ResetState(); //reset djauto hands (PlayUpdateJob is still running when IsStart==false)
                 _noteManager.ResetLoadedNote(ignoreOffset);
                 _noteManager.ResetLoadedPlay(ignoreOffset);
+                MajBurst.MultTouchHandler.ResetMultTouchState();
+
                 switch (playmode)
                 {
                     case PlaybackMode.Normal:

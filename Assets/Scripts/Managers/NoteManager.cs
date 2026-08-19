@@ -376,6 +376,7 @@ namespace MajdataViewX.Managers
                 _touchGroup.Swap();
 
                 _objectCounter.ProcessReportRequests();
+                _effectManager.ProcessEffectRequests();
                 MajBurst.InputData.ApplyNextIndices();
 
                 // 思来想去在th内做加减确实不比在这里遍历一次快

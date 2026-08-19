@@ -192,11 +192,12 @@ namespace MajdataViewX.Notes.Updaters
             }
 
             // ---- hold effect ----
-            NoteHelper.SetHoldEffect(JudgeEffectRequests,
-                (int)th.sensor + 8,
-                th.judgeGrade,
-                th.isHolding
-            );
+            if (timing > 0) // 防止顶掉前面hold的特效
+                NoteHelper.SetHoldEffect(JudgeEffectRequests,
+                    (int)th.sensor + 8,
+                    th.judgeGrade,
+                    th.isHolding
+                );
             // NoteHelper.SetTouchHoldSound(SfxRequests, th.isHolding);
 
             // ---- hold on/off skin ----

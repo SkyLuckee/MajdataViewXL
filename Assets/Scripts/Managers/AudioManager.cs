@@ -203,7 +203,9 @@ namespace MajdataViewX.Managers
         {
             if (!isInited || _timeProvider.IsRecord) return;
 
-            UpdateAnswerSfx();
+            // 预览时不要有声音
+            if (_timeProvider.IsStart)
+                UpdateAnswerSfx();
 
             for (var i = 0; i < SFX_COUNT; i++)
             {

@@ -211,11 +211,12 @@ namespace MajdataViewX.Notes.Updaters
             }
 
             // ---- hold effect ----
-            NoteHelper.SetHoldEffect(JudgeEffectRequests,
-                (int)hold.Key,
-                hold.judgeGrade,
-                hold.isHolding
-            );
+            if (headTiming > 0) // 防止顶掉前面hold的特效
+                NoteHelper.SetHoldEffect(JudgeEffectRequests,
+                    (int)hold.Key,
+                    hold.judgeGrade,
+                    hold.isHolding
+                );
 
             // ---- hold on/off skin ----
             // if (hold.LastFor > (NoteHelper.HOLD_HEAD_IGNORE_LENGTH_SEC + NoteHelper.HOLD_TAIL_IGNORE_LENGTH_SEC) && // 忽略短hold

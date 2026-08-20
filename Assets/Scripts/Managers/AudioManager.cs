@@ -368,8 +368,6 @@ namespace MajdataViewX.Managers
             _prevActiveTouchHoldCount = 0;
             NoteSfxs[TOUCHHOLD].Stop();
 
-            lock (answerSfxLock)
-                answerTimingPoints.Clear();
             for (var i = 0; i < SFX_COUNT; i++)
                 SfxRequestsPtr[i] = false;
         }

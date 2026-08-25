@@ -27,6 +27,8 @@ namespace MajdataViewX.Managers
 
         private RawImage jacketImage;
         private GameObject songDetail;
+        private SpriteRenderer jacketImageM;
+        private GameObject songDetailM;
         private static readonly int ShowHash = Animator.StringToHash("show");
         private Animator detailAnim;
         private SpriteRenderer spriteRender;
@@ -55,13 +57,13 @@ namespace MajdataViewX.Managers
 
         private void Start()
         {
-            jacketImage = GameObject.Find("Jacket").GetComponent<RawImage>();
-            songDetail = GameObject.Find("CanvasSongDetail");
-            songDetail.SetActive(false);
+            jacketImageM = GameObject.Find("JacketM").GetComponent<SpriteRenderer>();
+            songDetailM = GameObject.Find("CanvasSongDetailM");
+            songDetailM.SetActive(false);
 
             spriteRender = GetComponent<SpriteRenderer>();
             videoPlayer = GetComponent<VideoPlayer>();
-            detailAnim = songDetail.GetComponent<Animator>();
+            detailAnim = songDetailM.GetComponent<Animator>();
 
             _emptySprite = Sprite.Create(new Texture2D(1080, 1080), new Rect(0, 0, 1080, 1080), new Vector2(0.5f, 0.5f));
         }
@@ -96,7 +98,7 @@ namespace MajdataViewX.Managers
 
         public void PlaySongDetail()
         {
-            songDetail.SetActive(true);
+            songDetailM.SetActive(true);
             detailAnim.SetTrigger(ShowHash);
         }
 
@@ -122,12 +124,14 @@ namespace MajdataViewX.Managers
         {
             if (Bg == null || !hasBg)
             {
-                jacketImage.texture = bgDummy.texture;
+                jacketImageM.sprite = bgDummy;
+                jacketImageM.size = new Vector2(6.4f, 6.4f); // Sliced draw mode use different scale
                 spriteRender.sprite = defaultBg;
                 return;
             }
 
-            jacketImage.texture = Bg.texture;
+            jacketImageM.sprite = Bg;
+            jacketImageM.size = new Vector2(6.4f, 6.4f);
             spriteRender.sprite = Bg;
             var scale = 1140f / Bg.texture.width;
             gameObject.transform.localScale = new Vector3(scale, scale, scale);
@@ -190,8 +194,8 @@ namespace MajdataViewX.Managers
             spriteRender.sprite = defaultBg;
             smoothRDelta = 0f;
 
-            if (songDetail != null)
-                songDetail.SetActive(false);
+            if (songDetailM != null)
+                songDetailM.SetActive(false);
         }
 
         private void OnDestroy()

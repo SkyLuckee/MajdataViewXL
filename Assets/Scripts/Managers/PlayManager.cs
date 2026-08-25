@@ -219,7 +219,7 @@ namespace MajdataViewX.Managers
             _objectCounter.CountNoteSum(_chart);
             _objectCounter.ReportMeterBpm(_chart);
 
-            await _dataLoader.Load(_chart, file.Title, file.Artist, selectedDiff);
+            await _dataLoader.Load(_chart, file, selectedDiff);
 
             _state = previousState;
         }

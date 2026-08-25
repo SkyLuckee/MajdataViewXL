@@ -33,6 +33,7 @@ namespace MajdataViewX.Managers
         // TrackSampleData 仅导出(Record)模式混音用，普通播放无需加载，
         // 故 IsTrackLoaded 只取决于 Bass 流是否就绪
         public bool IsTrackLoaded => TrackSample != null;
+        public double TrackLengthSec => TrackSample != null ? TrackSample.Length : 0;
 
         //answer SFX gen
         private readonly List<AnswerTimingPoint> answerTimingPoints = new();

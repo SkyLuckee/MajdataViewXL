@@ -26,6 +26,7 @@ namespace MajdataViewX.Managers
         public Color[] diffColors = new Color[7];
         public TextMeshProUGUI levelTextM;
         public Text titleTextM;
+        public ErrorEffect[] errorTextsM = new ErrorEffect[0];
         public Text artistTextM;
         public Text designTextM;
         public Text bpmTextM;
@@ -154,6 +155,15 @@ namespace MajdataViewX.Managers
                 {
                     r.material = defaultMaterial;
                 }
+            }
+
+            // Error effect command
+            bool error = false;
+            var errorCommand = commands.FirstOrDefault(c => c.Prefix?.Trim() == "error");
+            if (errorCommand != default) bool.TryParse(errorCommand.Value, out error);
+            foreach (var errorText in errorTextsM)
+            {
+                errorText?.SetErrorAllowed(error);
             }
 
             // STD/DX command

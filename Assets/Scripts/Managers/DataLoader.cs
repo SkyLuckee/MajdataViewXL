@@ -70,8 +70,8 @@ namespace MajdataViewX.Managers
 
             //MaiUI        
             bool grayScale = false; // GrayScale command
-            var grayScaleCommand = commands.FirstOrDefault(c => c.Prefix == "gray_scale");
-            if (grayScaleCommand != default) grayScale = bool.Parse(grayScaleCommand.Value);                
+            var grayScaleCommand = commands.FirstOrDefault(c => c.Prefix?.Trim() == "gray_scale");
+            if (grayScaleCommand != default) bool.TryParse(grayScaleCommand.Value, out grayScale);            
 
             levelTextM.spriteAsset.spriteSheet = (grayScale) ? MLevelsM[7] : MLevelsM[diff];
             levelTextM.spriteAsset.material.SetTexture("_MainTex", (grayScale) ? MLevelsM[7] : MLevelsM[diff]); // use DAMMY for text
@@ -126,8 +126,11 @@ namespace MajdataViewX.Managers
             artistTextM.text = artist;
             designTextM.text = chart.Designer;
             designTextM.color = (grayScale) ? Color.black : new Color(0.480320f, 0.576780f, 0.750943f, 1f);
-            bpmTextM.text = "BPM " + chart.NoteTimings[0].Bpm;
-            bpmTextM.color = (grayScale) ? Color.black : new Color(0.350181f, 0.412731f, 0.516981f, 1f);
+            if (!chart.NoteTimings.IsEmpty)
+            {
+                bpmTextM.text = "BPM " + chart.NoteTimings[0].Bpm;
+                bpmTextM.color = (grayScale) ? Color.black : new Color(0.350181f, 0.412731f, 0.516981f, 1f);
+            }
             NOTESDESIGNER.color = (grayScale) ? Color.black : new Color(0.421851f, 0.537755f, 0.675471f, 1f);
 
             cardImageM.sprite = cardImagesM[diff];
@@ -155,8 +158,8 @@ namespace MajdataViewX.Managers
 
             // STD/DX command
             var chartMode = "DX";
-            var chartModeCommand = commands.FirstOrDefault(c => c.Prefix == "chart_mode");
-            if (chartModeCommand != default) chartMode = chartModeCommand.Value;
+            var chartModeCommand = commands.FirstOrDefault(c => c.Prefix?.Trim() == "chart_mode");
+            if (chartModeCommand != default) chartMode = chartModeCommand.Value?.Trim() ?? chartMode;
 
             if (diff != 6)
             {

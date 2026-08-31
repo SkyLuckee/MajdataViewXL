@@ -7,12 +7,8 @@ namespace MajdataViewX.UI
     [RequireComponent(typeof(RectTransform))]
     public class SongProgressBar : MonoBehaviour
     {
-        [Tooltip("Image with Image Type = Filled, Fill Method = Horizontal")]
-        [SerializeField] private Image fillImage;
-
-        [Tooltip("Left/right margin in pixels, kept when stretching to screen width")]
-        [SerializeField] private float horizontalMargin = 0f;
-
+        [SerializeField] 
+        private Image fillImage;
         private RectTransform rectTransform;
 
         private void Awake()

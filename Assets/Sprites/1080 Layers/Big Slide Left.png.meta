@@ -1,16 +1,28 @@
 fileFormatVersion: 2
-guid: 79385b6795b81934abc2cd1d71c9dc22
+guid: aae2acb597111164b9d58d06dd1e3a82
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 2261462179567415936
-    second: Big Hexes_0
+      213: -1086613685580602116
+    second: Big Slide Left_0
   - first:
-      213: 7679078013445450485
-    second: Big Hexes_1
+      213: -6116715998039506015
+    second: Big Slide Left_1
   - first:
-      213: -7937328365779786882
-    second: Big Hexes_2
+      213: -4218331633224859319
+    second: Big Slide Left_2
+  - first:
+      213: 4888329594482226193
+    second: Big Slide Left_3
+  - first:
+      213: 1419632581498092548
+    second: Big Slide Left_4
+  - first:
+      213: 8669897683243551528
+    second: Big Slide Left_5
+  - first:
+      213: 6409343241826485366
+    second: Big Slide Left_6
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -106,13 +118,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Big Hexes_0
+      name: Big Slide Left_0
       rect:
         serializedVersion: 2
-        x: 814
-        y: 540
-        width: 324
-        height: 324
+        x: 318
+        y: 556
+        width: 58
+        height: 58
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -121,20 +133,20 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 082b81eded3526f10800000000000000
-      internalID: 2261462179567415936
+      spriteID: cf4e3ee2c929be0f0800000000000000
+      internalID: -1086613685580602116
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: Big Hexes_1
+      name: Big Slide Left_1
       rect:
         serializedVersion: 2
-        x: 1072
-        y: 854
-        width: 323
-        height: 323
+        x: 352
+        y: 591
+        width: 89
+        height: 87
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -143,20 +155,108 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 5faade984c0919a60800000000000000
-      internalID: 7679078013445450485
+      spriteID: 1a308e0253f0d1ba0800000000000000
+      internalID: -6116715998039506015
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: Big Hexes_2
+      name: Big Slide Left_2
+      rect:
+        serializedVersion: 2
+        x: 258
+        y: 496
+        width: 59
+        height: 58
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 941c6d0bab97575c0800000000000000
+      internalID: -4218331633224859319
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Big Slide Left_3
+      rect:
+        serializedVersion: 2
+        x: 288
+        y: 526
+        width: 58
+        height: 58
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1147420edd5d6d340800000000000000
+      internalID: 4888329594482226193
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Big Slide Left_4
+      rect:
+        serializedVersion: 2
+        x: 198
+        y: 436
+        width: 58
+        height: 58
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 40cb3c3bf4c83b310800000000000000
+      internalID: 1419632581498092548
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Big Slide Left_5
+      rect:
+        serializedVersion: 2
+        x: 228
+        y: 467
+        width: 58
+        height: 57
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 82bc6b0020aa15870800000000000000
+      internalID: 8669897683243551528
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Big Slide Left_6
       rect:
         serializedVersion: 2
         x: 0
-        y: 180
-        width: 323
-        height: 324
+        y: 242
+        width: 226
+        height: 222
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -165,8 +265,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: e736014b7e1f8d190800000000000000
-      internalID: -7937328365779786882
+      spriteID: 6744e9468bf82f850800000000000000
+      internalID: 6409343241826485366
       vertices: []
       indices: 
       edges: []
@@ -185,9 +285,13 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Big Hexes_0: 2261462179567415936
-      Big Hexes_1: 7679078013445450485
-      Big Hexes_2: -7937328365779786882
+      Big Slide Left_0: -1086613685580602116
+      Big Slide Left_1: -6116715998039506015
+      Big Slide Left_2: -4218331633224859319
+      Big Slide Left_3: 4888329594482226193
+      Big Slide Left_4: 1419632581498092548
+      Big Slide Left_5: 8669897683243551528
+      Big Slide Left_6: 6409343241826485366
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

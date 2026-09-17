@@ -240,7 +240,7 @@ AnimationClip:
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
-    path: AP layers/ALL/A
+    path: AP layers/A
   - curve:
       serializedVersion: 2
       m_Curve:
@@ -319,7 +319,7 @@ AnimationClip:
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
-    path: AP layers/ALL/L2
+    path: AP layers/L2
   - curve:
       serializedVersion: 2
       m_Curve:
@@ -380,7 +380,7 @@ AnimationClip:
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
-    path: AP layers/PERFECT/R
+    path: AP layers/R
   - curve:
       serializedVersion: 2
       m_Curve:
@@ -441,7 +441,7 @@ AnimationClip:
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
-    path: AP layers/PERFECT/C
+    path: AP layers/C
   - curve:
       serializedVersion: 2
       m_Curve:
@@ -502,7 +502,7 @@ AnimationClip:
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
-    path: AP layers/PERFECT/E2
+    path: AP layers/E2
   - curve:
       serializedVersion: 2
       m_Curve:
@@ -563,7 +563,7 @@ AnimationClip:
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
-    path: AP layers/PERFECT/E1
+    path: AP layers/E1
   - curve:
       serializedVersion: 2
       m_Curve:
@@ -615,7 +615,7 @@ AnimationClip:
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
-    path: AP layers/PERFECT/P
+    path: AP layers/P
   - curve:
       serializedVersion: 2
       m_Curve:
@@ -676,7 +676,7 @@ AnimationClip:
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
-    path: AP layers/PERFECT/T
+    path: AP layers/T
   - curve:
       serializedVersion: 2
       m_Curve:
@@ -755,7 +755,7 @@ AnimationClip:
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
-    path: AP layers/ALL/L1
+    path: AP layers/L1
   - curve:
       serializedVersion: 2
       m_Curve:
@@ -816,7 +816,7 @@ AnimationClip:
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
-    path: AP layers/PERFECT/F
+    path: AP layers/F
   m_ScaleCurves:
   - curve:
       serializedVersion: 2
@@ -1626,7 +1626,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.r
-    path: AP layers/ALL/A
+    path: AP layers/A
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -1647,7 +1647,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.g
-    path: AP layers/ALL/A
+    path: AP layers/A
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -1668,7 +1668,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.b
-    path: AP layers/ALL/A
+    path: AP layers/A
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -1716,7 +1716,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.a
-    path: AP layers/ALL/A
+    path: AP layers/A
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -1737,7 +1737,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.r
-    path: AP layers/ALL/L1
+    path: AP layers/L1
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -1758,7 +1758,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.g
-    path: AP layers/ALL/L1
+    path: AP layers/L1
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -1779,7 +1779,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.b
-    path: AP layers/ALL/L1
+    path: AP layers/L1
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -1827,7 +1827,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.a
-    path: AP layers/ALL/L1
+    path: AP layers/L1
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -1848,7 +1848,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.r
-    path: AP layers/ALL/L2
+    path: AP layers/L2
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -1869,7 +1869,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.g
-    path: AP layers/ALL/L2
+    path: AP layers/L2
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -1890,7 +1890,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.b
-    path: AP layers/ALL/L2
+    path: AP layers/L2
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -1938,7 +1938,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.a
-    path: AP layers/ALL/L2
+    path: AP layers/L2
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -1959,7 +1959,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.r
-    path: AP layers/PERFECT/P
+    path: AP layers/P
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -1980,7 +1980,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.g
-    path: AP layers/PERFECT/P
+    path: AP layers/P
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -2001,7 +2001,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.b
-    path: AP layers/PERFECT/P
+    path: AP layers/P
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -2049,7 +2049,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.a
-    path: AP layers/PERFECT/P
+    path: AP layers/P
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -2070,7 +2070,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.r
-    path: AP layers/PERFECT/E1
+    path: AP layers/E1
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -2091,7 +2091,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.g
-    path: AP layers/PERFECT/E1
+    path: AP layers/E1
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -2112,7 +2112,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.b
-    path: AP layers/PERFECT/E1
+    path: AP layers/E1
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -2160,7 +2160,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.a
-    path: AP layers/PERFECT/E1
+    path: AP layers/E1
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -2181,7 +2181,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.r
-    path: AP layers/PERFECT/R
+    path: AP layers/R
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -2202,7 +2202,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.g
-    path: AP layers/PERFECT/R
+    path: AP layers/R
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -2223,7 +2223,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.b
-    path: AP layers/PERFECT/R
+    path: AP layers/R
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -2271,7 +2271,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.a
-    path: AP layers/PERFECT/R
+    path: AP layers/R
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -2292,7 +2292,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.r
-    path: AP layers/PERFECT/F
+    path: AP layers/F
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -2313,7 +2313,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.g
-    path: AP layers/PERFECT/F
+    path: AP layers/F
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -2334,7 +2334,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.b
-    path: AP layers/PERFECT/F
+    path: AP layers/F
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -2382,7 +2382,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.a
-    path: AP layers/PERFECT/F
+    path: AP layers/F
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -2403,7 +2403,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.r
-    path: AP layers/PERFECT/E2
+    path: AP layers/E2
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -2424,7 +2424,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.g
-    path: AP layers/PERFECT/E2
+    path: AP layers/E2
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -2445,7 +2445,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.b
-    path: AP layers/PERFECT/E2
+    path: AP layers/E2
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -2493,7 +2493,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.a
-    path: AP layers/PERFECT/E2
+    path: AP layers/E2
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -2514,7 +2514,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.r
-    path: AP layers/PERFECT/C
+    path: AP layers/C
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -2535,7 +2535,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.g
-    path: AP layers/PERFECT/C
+    path: AP layers/C
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -2556,7 +2556,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.b
-    path: AP layers/PERFECT/C
+    path: AP layers/C
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -2604,7 +2604,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.a
-    path: AP layers/PERFECT/C
+    path: AP layers/C
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -2625,7 +2625,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.r
-    path: AP layers/PERFECT/T
+    path: AP layers/T
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -2646,7 +2646,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.g
-    path: AP layers/PERFECT/T
+    path: AP layers/T
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -2667,7 +2667,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.b
-    path: AP layers/PERFECT/T
+    path: AP layers/T
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -2715,7 +2715,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.a
-    path: AP layers/PERFECT/T
+    path: AP layers/T
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -4602,7 +4602,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_LocalPosition.x
-    path: AP layers/ALL/A
+    path: AP layers/A
     classID: 4
     script: {fileID: 0}
     flags: 0
@@ -4686,7 +4686,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_LocalPosition.y
-    path: AP layers/ALL/A
+    path: AP layers/A
     classID: 4
     script: {fileID: 0}
     flags: 0
@@ -4716,7 +4716,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_LocalPosition.x
-    path: AP layers/ALL/L2
+    path: AP layers/L2
     classID: 4
     script: {fileID: 0}
     flags: 0
@@ -4800,7 +4800,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_LocalPosition.y
-    path: AP layers/ALL/L2
+    path: AP layers/L2
     classID: 4
     script: {fileID: 0}
     flags: 0
@@ -4821,7 +4821,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_LocalPosition.z
-    path: AP layers/ALL/L2
+    path: AP layers/L2
     classID: 4
     script: {fileID: 0}
     flags: 0
@@ -4851,7 +4851,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_LocalPosition.x
-    path: AP layers/PERFECT/R
+    path: AP layers/R
     classID: 4
     script: {fileID: 0}
     flags: 0
@@ -4917,7 +4917,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_LocalPosition.y
-    path: AP layers/PERFECT/R
+    path: AP layers/R
     classID: 4
     script: {fileID: 0}
     flags: 0
@@ -4938,7 +4938,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_LocalPosition.z
-    path: AP layers/PERFECT/R
+    path: AP layers/R
     classID: 4
     script: {fileID: 0}
     flags: 0
@@ -4968,7 +4968,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_LocalPosition.x
-    path: AP layers/PERFECT/C
+    path: AP layers/C
     classID: 4
     script: {fileID: 0}
     flags: 0
@@ -5034,7 +5034,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_LocalPosition.y
-    path: AP layers/PERFECT/C
+    path: AP layers/C
     classID: 4
     script: {fileID: 0}
     flags: 0
@@ -5055,7 +5055,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_LocalPosition.z
-    path: AP layers/PERFECT/C
+    path: AP layers/C
     classID: 4
     script: {fileID: 0}
     flags: 0
@@ -5085,7 +5085,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_LocalPosition.x
-    path: AP layers/PERFECT/E2
+    path: AP layers/E2
     classID: 4
     script: {fileID: 0}
     flags: 0
@@ -5151,7 +5151,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_LocalPosition.y
-    path: AP layers/PERFECT/E2
+    path: AP layers/E2
     classID: 4
     script: {fileID: 0}
     flags: 0
@@ -5172,7 +5172,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_LocalPosition.z
-    path: AP layers/PERFECT/E2
+    path: AP layers/E2
     classID: 4
     script: {fileID: 0}
     flags: 0
@@ -5202,7 +5202,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_LocalPosition.x
-    path: AP layers/PERFECT/E1
+    path: AP layers/E1
     classID: 4
     script: {fileID: 0}
     flags: 0
@@ -5268,7 +5268,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_LocalPosition.y
-    path: AP layers/PERFECT/E1
+    path: AP layers/E1
     classID: 4
     script: {fileID: 0}
     flags: 0
@@ -5289,7 +5289,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_LocalPosition.z
-    path: AP layers/PERFECT/E1
+    path: AP layers/E1
     classID: 4
     script: {fileID: 0}
     flags: 0
@@ -5319,7 +5319,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_LocalPosition.x
-    path: AP layers/PERFECT/P
+    path: AP layers/P
     classID: 4
     script: {fileID: 0}
     flags: 0
@@ -5376,7 +5376,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_LocalPosition.y
-    path: AP layers/PERFECT/P
+    path: AP layers/P
     classID: 4
     script: {fileID: 0}
     flags: 0
@@ -5397,7 +5397,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_LocalPosition.z
-    path: AP layers/PERFECT/P
+    path: AP layers/P
     classID: 4
     script: {fileID: 0}
     flags: 0
@@ -5427,7 +5427,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_LocalPosition.x
-    path: AP layers/PERFECT/T
+    path: AP layers/T
     classID: 4
     script: {fileID: 0}
     flags: 0
@@ -5493,7 +5493,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_LocalPosition.y
-    path: AP layers/PERFECT/T
+    path: AP layers/T
     classID: 4
     script: {fileID: 0}
     flags: 0
@@ -5514,7 +5514,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_LocalPosition.z
-    path: AP layers/PERFECT/T
+    path: AP layers/T
     classID: 4
     script: {fileID: 0}
     flags: 0
@@ -5535,7 +5535,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_LocalPosition.x
-    path: AP layers/ALL/L1
+    path: AP layers/L1
     classID: 4
     script: {fileID: 0}
     flags: 0
@@ -5619,7 +5619,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_LocalPosition.y
-    path: AP layers/ALL/L1
+    path: AP layers/L1
     classID: 4
     script: {fileID: 0}
     flags: 0
@@ -5640,7 +5640,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_LocalPosition.z
-    path: AP layers/ALL/L1
+    path: AP layers/L1
     classID: 4
     script: {fileID: 0}
     flags: 0
@@ -5661,7 +5661,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_LocalPosition.x
-    path: AP layers/PERFECT/F
+    path: AP layers/F
     classID: 4
     script: {fileID: 0}
     flags: 0
@@ -5727,7 +5727,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_LocalPosition.y
-    path: AP layers/PERFECT/F
+    path: AP layers/F
     classID: 4
     script: {fileID: 0}
     flags: 0
@@ -5748,7 +5748,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_LocalPosition.z
-    path: AP layers/PERFECT/F
+    path: AP layers/F
     classID: 4
     script: {fileID: 0}
     flags: 0
@@ -5769,7 +5769,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.r
-    path: AP layers/ALL/A
+    path: AP layers/A
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -5790,7 +5790,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.g
-    path: AP layers/ALL/A
+    path: AP layers/A
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -5811,7 +5811,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.b
-    path: AP layers/ALL/A
+    path: AP layers/A
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -5859,7 +5859,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.a
-    path: AP layers/ALL/A
+    path: AP layers/A
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -5880,7 +5880,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.r
-    path: AP layers/ALL/L1
+    path: AP layers/L1
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -5901,7 +5901,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.g
-    path: AP layers/ALL/L1
+    path: AP layers/L1
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -5922,7 +5922,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.b
-    path: AP layers/ALL/L1
+    path: AP layers/L1
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -5970,7 +5970,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.a
-    path: AP layers/ALL/L1
+    path: AP layers/L1
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -5991,7 +5991,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.r
-    path: AP layers/ALL/L2
+    path: AP layers/L2
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -6012,7 +6012,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.g
-    path: AP layers/ALL/L2
+    path: AP layers/L2
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -6033,7 +6033,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.b
-    path: AP layers/ALL/L2
+    path: AP layers/L2
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -6081,7 +6081,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.a
-    path: AP layers/ALL/L2
+    path: AP layers/L2
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -6102,7 +6102,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.r
-    path: AP layers/PERFECT/P
+    path: AP layers/P
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -6123,7 +6123,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.g
-    path: AP layers/PERFECT/P
+    path: AP layers/P
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -6144,7 +6144,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.b
-    path: AP layers/PERFECT/P
+    path: AP layers/P
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -6192,7 +6192,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.a
-    path: AP layers/PERFECT/P
+    path: AP layers/P
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -6213,7 +6213,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.r
-    path: AP layers/PERFECT/E1
+    path: AP layers/E1
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -6234,7 +6234,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.g
-    path: AP layers/PERFECT/E1
+    path: AP layers/E1
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -6255,7 +6255,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.b
-    path: AP layers/PERFECT/E1
+    path: AP layers/E1
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -6303,7 +6303,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.a
-    path: AP layers/PERFECT/E1
+    path: AP layers/E1
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -6324,7 +6324,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.r
-    path: AP layers/PERFECT/R
+    path: AP layers/R
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -6345,7 +6345,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.g
-    path: AP layers/PERFECT/R
+    path: AP layers/R
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -6366,7 +6366,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.b
-    path: AP layers/PERFECT/R
+    path: AP layers/R
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -6414,7 +6414,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.a
-    path: AP layers/PERFECT/R
+    path: AP layers/R
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -6435,7 +6435,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.r
-    path: AP layers/PERFECT/F
+    path: AP layers/F
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -6456,7 +6456,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.g
-    path: AP layers/PERFECT/F
+    path: AP layers/F
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -6477,7 +6477,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.b
-    path: AP layers/PERFECT/F
+    path: AP layers/F
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -6525,7 +6525,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.a
-    path: AP layers/PERFECT/F
+    path: AP layers/F
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -6546,7 +6546,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.r
-    path: AP layers/PERFECT/E2
+    path: AP layers/E2
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -6567,7 +6567,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.g
-    path: AP layers/PERFECT/E2
+    path: AP layers/E2
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -6588,7 +6588,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.b
-    path: AP layers/PERFECT/E2
+    path: AP layers/E2
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -6636,7 +6636,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.a
-    path: AP layers/PERFECT/E2
+    path: AP layers/E2
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -6657,7 +6657,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.r
-    path: AP layers/PERFECT/C
+    path: AP layers/C
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -6678,7 +6678,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.g
-    path: AP layers/PERFECT/C
+    path: AP layers/C
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -6699,7 +6699,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.b
-    path: AP layers/PERFECT/C
+    path: AP layers/C
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -6747,7 +6747,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.a
-    path: AP layers/PERFECT/C
+    path: AP layers/C
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -6768,7 +6768,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.r
-    path: AP layers/PERFECT/T
+    path: AP layers/T
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -6789,7 +6789,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.g
-    path: AP layers/PERFECT/T
+    path: AP layers/T
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -6810,7 +6810,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.b
-    path: AP layers/PERFECT/T
+    path: AP layers/T
     classID: 212
     script: {fileID: 0}
     flags: 0
@@ -6858,7 +6858,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_Color.a
-    path: AP layers/PERFECT/T
+    path: AP layers/T
     classID: 212
     script: {fileID: 0}
     flags: 0

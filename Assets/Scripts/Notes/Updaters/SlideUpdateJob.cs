@@ -7,7 +7,7 @@ using MajdataViewX.Types.Input;
 using MajdataViewX.Types.Notes;
 using MajdataViewX.Types.Notes.RenderData;
 using MajdataViewX.Utils.Extensions;
-using MajSimai;
+using Cimai;
 using System.Threading;
 using Unity.Burst;
 using Unity.Collections;
@@ -674,7 +674,7 @@ namespace MajdataViewX.Notes.Updaters
             NoteHelper.ReportResult(ReportResults,
                 slide.judgeGrade,
                 slide.isBreak,
-                SimaiNoteType.Slide
+                SimaiNoteType.SLIDE
             );
         }
 

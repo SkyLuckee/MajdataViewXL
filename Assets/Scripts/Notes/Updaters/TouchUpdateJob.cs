@@ -6,7 +6,7 @@ using MajdataViewX.Types.Notes;
 using MajdataViewX.Types.Notes.RenderData;
 using MajdataViewX.Utils;
 using MajdataViewX.Utils.Extensions;
-using MajSimai;
+using Cimai;
 using System.Threading;
 using Unity.Burst;
 using Unity.Collections;
@@ -57,9 +57,9 @@ namespace MajdataViewX.Notes.Updaters
             var timePart = ((uint)math.max(0f, touch.time * 100f)) & 0x7FFFF;
             var sortTime = ((timePart << 11) | (uint)(index & 0x7FF)) & 0x3FFFFFFF;
 
-            var timing = touch.usingSV
-                ? TimeData.FakeNoteTime - TimeData.GetPositionAtTime(touch.time)
-                : TimeData.NoteTime - touch.time;
+            var timing = touch.isIgnoreSV
+                ? TimeData.NoteTime - touch.time
+                : TimeData.FakeNoteTime - TimeData.GetPositionAtTime(touch.time);
             if (timing > 0) return;
             var pow = -math.exp(8f * (timing * 0.43f / touch.moveDuration) - 0.85f) + 0.42f;
             var fanDist = math.clamp(pow, 0f, 0.4f);
@@ -139,9 +139,9 @@ namespace MajdataViewX.Notes.Updaters
             var timePart = ((uint)math.max(0f, touch.time * 100f)) & 0x7FFFF;
             var sortTime = ((timePart << 11) | (uint)(index & 0x7FF)) & 0x3FFFFFFF;
 
-            var timing = touch.usingSV
-                ? TimeData.FakeNoteTime - TimeData.GetPositionAtTime(touch.time)
-                : TimeData.NoteTime - touch.time;
+            var timing = touch.isIgnoreSV
+                ? TimeData.NoteTime - touch.time
+                : TimeData.FakeNoteTime - TimeData.GetPositionAtTime(touch.time);
             var pow = -math.exp(8f * (timing * 0.43f / touch.moveDuration) - 0.85f) + 0.42f;
             var fanDist = math.clamp(pow, 0f, 0.4f);
 
@@ -175,7 +175,7 @@ namespace MajdataViewX.Notes.Updaters
                 centerPos + new float2(-(0.226f + fanDist), 0),
                 centerPos + new float2(0, -(0.226f + fanDist)),
             };
-            for (int i = 0; i < 4; i++)
+            for (var i = 0; i < 4; i++)
             {
                 var tIdx = Interlocked.Increment(ref *TouchesWriteCountPtr) - 1;
                 touchesRender[tIdx] = new SimpleRenderData
@@ -348,7 +348,7 @@ namespace MajdataViewX.Notes.Updaters
             NoteHelper.ReportResult(ReportResults,
                 touch.judgeGrade,
                 touch.isBreak,
-                SimaiNoteType.Touch
+                SimaiNoteType.TOUCH
             );
 
             InputData.NextTouch(touch.sensor);

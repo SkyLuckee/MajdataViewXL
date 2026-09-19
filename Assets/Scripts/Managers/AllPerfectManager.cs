@@ -12,9 +12,9 @@ namespace MajdataViewX.Managers
     {
         private static readonly int PlayAllPerfectHash = Animator.StringToHash("playAllPerfect");
         [SerializeField]
-        private Animator AllPerfect;
+        private Animator allPerfect = null!;
 
-        private bool isPlayed;
+        private bool _isPlayed;
 
         private void Awake()
         {
@@ -23,7 +23,7 @@ namespace MajdataViewX.Managers
 
         private void Start()
         {
-            AllPerfect.gameObject.SetActive(false);
+            allPerfect.gameObject.SetActive(false);
         }
 
         private void Update()
@@ -31,30 +31,26 @@ namespace MajdataViewX.Managers
             if (PlayManager.Summary.State is not ViewStatus.Playing)
                 return;
 
-            if (_objectCounter.AllFinished)
+            if (!_objectCounter.AllFinished) return;
+            if (_isPlayed)
             {
-                if (isPlayed)
-                {
-                    if (!AllPerfect.gameObject.activeSelf)
-                    {
-                        _playManager.StopAsync().Forget();
-                        _wsServer.SendStopResponse();
-                    }
-                }
-                else
-                {
-                    AllPerfect.gameObject.SetActive(true);
-                    AllPerfect.SetTrigger(PlayAllPerfectHash);
-                    _audioManager.noteSfxPlaybackRequests[AudioManager.ALL_PERFECT] = true;
-                    isPlayed = true;
-                }
+                if (allPerfect.gameObject.activeSelf) return;
+                _playManager.StopAsync().Forget();
+                _wsServer.SendStopResponse();
+            }
+            else
+            {
+                allPerfect.gameObject.SetActive(true);
+                allPerfect.SetTrigger(PlayAllPerfectHash);
+                _audioManager.noteSfxPlaybackRequests[AudioManager.ALL_PERFECT] = true;
+                _isPlayed = true;
             }
         }
 
         public void ResetState()
         {
-            AllPerfect.gameObject.SetActive(false);
-            isPlayed = false;
+            allPerfect.gameObject.SetActive(false);
+            _isPlayed = false;
         }
     }
 }

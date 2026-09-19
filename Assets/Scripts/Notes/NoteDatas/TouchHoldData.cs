@@ -23,7 +23,7 @@ namespace MajdataViewX.Notes.NoteDatas
         public bool isEx;
         public bool isBreak;
         public bool isMine;
-        public bool usingSV;
+        public bool isIgnoreSV;
 
         public bool isFolded;
 
@@ -120,6 +120,6 @@ namespace MajdataViewX.Notes.NoteDatas
             isEx == other.isEx &&
             isBreak == other.isBreak &&
             isMine == other.isMine &&
-            usingSV == other.usingSV;
+            isIgnoreSV == other.isIgnoreSV;
     }
 }

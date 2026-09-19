@@ -6,7 +6,7 @@ using MajdataViewX.Types.Notes.RenderData;
 using MajdataViewX.Types.Rendering;
 using MajdataViewX.Utils;
 using MajdataViewX.Utils.Extensions;
-using MajSimai;
+using Cimai;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
@@ -154,11 +154,11 @@ namespace MajdataViewX.Managers
         private void ConfigureRenderCapacity(SimaiChart chart)
         {
             var noteCount = 0;
-            foreach (var timing in chart.NoteTimings)
+            foreach (var timing in chart.Timings)
             {
                 noteCount += timing.Notes.Length;
             }
-            var lastNoteTime = chart.NoteTimings[^1].Timing;
+            var lastNoteTime = chart.Timings[^1].Time;
 
             NoteDensity = lastNoteTime > 0d
                 ? noteCount / (float)lastNoteTime
@@ -266,7 +266,7 @@ namespace MajdataViewX.Managers
                         SfxRequests = _audioManager.SfxRequestsPtr,
                         JudgeEffectRequests = _effectManager.JudgeEffectRequestsPtr,
                         ReportResults = _objectCounter.ReportRequestsWriter,
-                    }.Schedule(holds.Length, 32, h);
+                    }.Schedule(holds.Length, 128, h);
 
                 if (slides.Length > 0)
                     h = new SlideUpdateJob
@@ -278,7 +278,7 @@ namespace MajdataViewX.Managers
                         NotesWriteCountPtr = _notesGroup.WriteCountPtr,
                         SfxRequests = _audioManager.SfxRequestsPtr,
                         ReportResults = _objectCounter.ReportRequestsWriter,
-                    }.Schedule(slides.Length, 32, h);
+                    }.Schedule(slides.Length, 128, h);
 
                 if (touchHolds.Length > 0)
                     h = new TouchHoldUpdateJob
@@ -295,7 +295,7 @@ namespace MajdataViewX.Managers
                         touchGroupJudgedCounts = touchGroupJudgedCounts.AsArray(),
                         touchHoldGroupTotalCounts = touchHoldGroupTotalCounts.AsArray(),
                         touchHoldGroupPressedCounts = touchHoldGroupPressedCounts.AsArray(),
-                    }.Schedule(touchHolds.Length, 32, h);
+                    }.Schedule(touchHolds.Length, 128, h);
 
                 if (taps.Length > 0)
                     h = new TapUpdateJob
@@ -310,7 +310,7 @@ namespace MajdataViewX.Managers
                         SfxRequests = _audioManager.SfxRequestsPtr,
                         JudgeEffectRequests = _effectManager.JudgeEffectRequestsPtr,
                         ReportResults = _objectCounter.ReportRequestsWriter,
-                    }.Schedule(taps.Length, 32, h);
+                    }.Schedule(taps.Length, 128, h);
 
                 if (eachLines.Length > 0)
                     h = new EachLineUpdateJob
@@ -318,7 +318,7 @@ namespace MajdataViewX.Managers
                         eachLines = eachLines.AsArray(),
                         eachLinesRender = eachLinesRender,
                         EachLinesWriteCountPtr = _eachLineGroup.WriteCountPtr,
-                    }.Schedule(eachLines.Length, 32, h);
+                    }.Schedule(eachLines.Length, 64, h);
 
                 if (touches.Length > 0)
                     h = new TouchUpdateJob
@@ -331,7 +331,7 @@ namespace MajdataViewX.Managers
                         ReportResults = _objectCounter.ReportRequestsWriter,
                         touchGroupTotalCounts = touchGroupTotalCounts.AsArray(),
                         touchGroupJudgedCounts = touchGroupJudgedCounts.AsArray(),
-                    }.Schedule(touches.Length, 32, h);
+                    }.Schedule(touches.Length, 128, h);
 
                 var tapLineSort = _tapLineGroup.ScheduleSort(h);
                 var eachLineSort = _eachLineGroup.ScheduleSort(h);

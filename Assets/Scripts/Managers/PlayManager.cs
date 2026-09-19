@@ -7,13 +7,11 @@ using MajdataViewX.Notes.SlideUtils;
 using MajdataViewX.Types.Enums;
 using MajdataViewX.Types.MajSetting;
 using MajdataViewX.Types.MajWs;
-using MajSimai;
-using MemoryPack;
+using Cimai;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.Design;
 using System.IO;
-using System.IO.MemoryMappedFiles;
 using System.Linq;
 using System.Threading;
 using Unity.Properties;
@@ -31,12 +29,6 @@ namespace MajdataViewX.Managers
             ErrMsg = _errMsg,
         };
 
-        // 直接存储 MajSimai 原始类型：Update 从共享内存拿到已解析数据，Play 不再全量解析
-        private static SimaiFile _file = SimaiFile.Empty(string.Empty, string.Empty);
-        private static SimaiChart _chart = SimaiChart.Empty;
-        private MemoryMappedFile mmfChartData;
-        private MemoryMappedViewAccessor mmvChartData;
-
         private static ViewStatus _state = ViewStatus.Idle;
         private static string _errMsg = string.Empty;
 
@@ -44,6 +36,8 @@ namespace MajdataViewX.Managers
         private static int _audioManagerThreadRunning;
 
         private static MajViewSetting _setting = new();
+        private static float _currentOffset;
+        private static SimaiChart? _chart;
 
         private SpriteRenderer bgCover;
         private SpriteRenderer bgOutsideCover;
@@ -93,24 +87,6 @@ namespace MajdataViewX.Managers
 
 
             SlideTableNeo.InitializeStandardSlideTable();
-
-            var mmfChartDataFileStream = new FileStream(
-                    MajEnv.MmfChartDataPath,
-                    FileMode.OpenOrCreate,
-                    FileAccess.ReadWrite,
-                    FileShare.ReadWrite
-                );
-            if (mmfChartDataFileStream.Length < MajEnv.MmfChartDataCapacity)
-                mmfChartDataFileStream.SetLength(MajEnv.MmfChartDataCapacity);
-            mmfChartData = MemoryMappedFile.CreateFromFile(
-                mmfChartDataFileStream,
-                null,
-                MajEnv.MmfChartDataCapacity,
-                MemoryMappedFileAccess.ReadWrite,
-                HandleInheritability.None,
-                false
-            );
-            mmvChartData = mmfChartData.CreateViewAccessor();
         }
 
         private bool CheckIsLoaded() => _audioManager.IsTrackLoaded &&
@@ -186,40 +162,38 @@ namespace MajdataViewX.Managers
             _bgManager.ResizeBg = _setting.ResizeBg;
         }
 
-        public async UniTask UpdateAsync(long fileLength, long chartLength, int selectedDiff)
+        public async UniTask UpdateAsync(
+            string? chartText,
+            int selectedDifficulty,
+            string title,
+            string artist,
+            string level,
+            string designer,
+            float offset,
+            int clockCount)
         {
             while (_state is ViewStatus.Busy)
                 await UniTask.Yield();
 
             var previousState = _state;
             _state = ViewStatus.Busy;
+            
+            var chart = SimaiChart.Parse(chartText ?? string.Empty);
 
-            // 从共享内存读取 Edit 写入的两段 MemoryPack 字节并反序列化：
-            // [0..fileLength) = SimaiFile 元数据（Charts 已 Ignore），[fileLength..) = SimaiChart 时序
-            var fileBuffer = new byte[fileLength];
-            mmvChartData.ReadArray(0, fileBuffer, 0, (int)fileLength);
-            var chartBuffer = new byte[chartLength];
-            mmvChartData.ReadArray(fileLength, chartBuffer, 0, (int)chartLength);
-
-            var file = MemoryPackSerializer.Deserialize<SimaiFile>(fileBuffer) ?? SimaiFile.Empty(string.Empty, string.Empty);
-            var chart = MemoryPackSerializer.Deserialize<SimaiChart>(chartBuffer) ?? SimaiChart.Empty;
-
-            _file = file;
+            _chart?.Dispose();
             _chart = chart;
+            _currentOffset = offset;
+            _timeProvider.offset = offset;
 
-            _timeProvider.offset = _file.Offset;
             //answer
-            var clockCount = 0;
-            var clockCommand = file.Commands.FirstOrDefault(c => c.Prefix == "clock_count");
-            if (clockCommand != null) int.TryParse(clockCommand.Value, out clockCount);
-            _audioManager.GenerateAnswerSFX(_chart, clockCount);
+            _audioManager.GenerateAnswerSFX(chart, clockCount);
 
             //counter
             _objectCounter.ResetLoaded();
-            _objectCounter.CountNoteSum(_chart);
-            _objectCounter.ReportMeterBpm(_chart);
+            _objectCounter.CountNoteSum(chart);
+            _objectCounter.ReportMeterBpm(chart);
 
-            await _dataLoader.Load(_chart, file.Title, file.Artist, selectedDiff);
+            await _dataLoader.Load(chart, title, artist, level, designer, selectedDifficulty);
 
             _state = previousState;
         }
@@ -236,7 +210,7 @@ namespace MajdataViewX.Managers
             try
             {
                 await UniTask.SwitchToMainThread();
-                var ignoreOffset = startAt - _file.Offset;
+                var ignoreOffset = startAt - _currentOffset;
 
                 //bg
                 _bgManager.ShowBG();
@@ -248,7 +222,7 @@ namespace MajdataViewX.Managers
                 _objectCounter.CountIgnoreNoteCountAsync(_chart, ignoreOffset);
                 //notes
                 //MajBurst.InputData.ResetState(); in ResetLoadedNote
-                _noteManager.ResetState(); //reset djauto hands (PlayUpdateJob is still running when IsStart==false)
+                _noteManager.ResetState(); //reset DJAuto hands (PlayUpdateJob is still running when IsStart==false)
                 _noteManager.ResetLoadedNote(ignoreOffset);
                 _noteManager.ResetLoadedPlay(ignoreOffset);
                 MajBurst.MultTouchHandler.ResetMultTouchState();
@@ -258,7 +232,7 @@ namespace MajdataViewX.Managers
                     case PlaybackMode.Normal:
                         _allPerfectManager.enabled = false;
 
-                        _timeProvider.SetStartTime(startAt, _file.Offset, speed, playmode);
+                        _timeProvider.SetStartTime(startAt, _currentOffset, speed, playmode);
                         _audioManager.PlayTrack();
                         break;
                     case PlaybackMode.IncludeOp:
@@ -267,7 +241,7 @@ namespace MajdataViewX.Managers
                         _bgManager.PlaySongDetail();
                         _audioManager.noteSfxPlaybackRequests[AudioManager.TRACK_START] = true; //track_start
 
-                        _timeProvider.SetStartTime(startAt, _file.Offset, speed, playmode);
+                        _timeProvider.SetStartTime(startAt, _currentOffset, speed, playmode);
                         _audioManager.PlayTrack();
                         break;
                     case PlaybackMode.Record:
@@ -284,7 +258,7 @@ namespace MajdataViewX.Managers
                             _setting.OutputFps, _setting.ExportQuality,
                             () =>
                             {
-                                _timeProvider.SetStartTime(startAt, _file.Offset, speed, playmode, _setting.OutputFps);
+                                _timeProvider.SetStartTime(startAt, _currentOffset, speed, playmode, _setting.OutputFps);
                             }).ContinueWith(() =>
                         {
                             canvasButtons.SetActive(true);
@@ -295,6 +269,8 @@ namespace MajdataViewX.Managers
                         _allPerfectManager.enabled = false;
                         _state = ViewStatus.Paused;
                         return;
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(playmode), playmode, null);
                 }
 
                 _state = ViewStatus.Playing;
@@ -382,9 +358,6 @@ namespace MajdataViewX.Managers
             _audioManager.OnDestroy();
             _inputManager.OnDestroy();
             MajBurst.InputData.Dispose();
-
-            mmvChartData?.Dispose();
-            mmfChartData?.Dispose();
         }
     }
 }

@@ -39,9 +39,9 @@ namespace MajdataViewX.Managers
         private static float _currentOffset;
         private static SimaiChart? _chart;
 
-        private SpriteRenderer bgCover;
-        private SpriteRenderer bgOutsideCover;
-        private GameObject canvasButtons;
+        private SpriteRenderer _bgCover = null!;
+        private SpriteRenderer _bgOutsideCover = null!;
+        private GameObject _canvasButtons = null!;
 
         private void Awake()
         {
@@ -51,9 +51,9 @@ namespace MajdataViewX.Managers
         // 这里是游戏内部的东西的启动初始化
         private void Start()
         {
-            bgCover = GameObject.Find("BgCover").GetComponent<SpriteRenderer>();
-            bgOutsideCover = GameObject.Find("BgOutsideCover").GetComponent<SpriteRenderer>();
-            canvasButtons = GameObject.Find("CanvasButtons");
+            _bgCover = GameObject.Find("BgCover").GetComponent<SpriteRenderer>();
+            _bgOutsideCover = GameObject.Find("BgOutsideCover").GetComponent<SpriteRenderer>();
+            _canvasButtons = GameObject.Find("CanvasButtons");
 
             _ = new AudioManager();
             Volatile.Write(ref _audioManagerThreadRunning, 1);
@@ -109,23 +109,23 @@ namespace MajdataViewX.Managers
                 //bg
                 if (File.Exists(bgPath))
                 {
-                    BgManager.hasBg = true;
-                    _bgManager.LoadBG(bgPath);
+                    BgManager.HasBg = true;
+                    _bgManager.LoadBg(bgPath);
                 }
                 else
                 {
-                    BgManager.hasBg = false;
+                    BgManager.HasBg = false;
                 }
 
                 //video
                 if (pvPath is not null && File.Exists(pvPath))
                 {
-                    BgManager.hasVideo = true;
+                    BgManager.HasVideo = true;
                     _bgManager.LoadVideo(pvPath);
                 }
                 else
                 {
-                    BgManager.hasVideo = false;
+                    BgManager.HasVideo = false;
                 }
 
                 _state = ViewStatus.Loaded;
@@ -157,9 +157,9 @@ namespace MajdataViewX.Managers
             //counter
             _objectCounter.Setting(_setting.ComboStatusType, _setting.UIType);
             //bg
-            bgCover.color = new Color(0f, 0f, 0f, _setting.BackgroundDim);
-            bgOutsideCover.color = new Color(0f, 0f, 0f, _setting.BackgroundOutsideDim);
-            _bgManager.ResizeBg = _setting.ResizeBg;
+            _bgCover.color = new Color(0f, 0f, 0f, _setting.BackgroundDim);
+            _bgOutsideCover.color = new Color(0f, 0f, 0f, _setting.BackgroundOutsideDim);
+            _bgManager.resizeBg = _setting.ResizeBg;
         }
 
         public async UniTask UpdateAsync(
@@ -213,7 +213,7 @@ namespace MajdataViewX.Managers
                 var ignoreOffset = startAt - _currentOffset;
 
                 //bg
-                _bgManager.ShowBG();
+                _bgManager.ShowBg();
                 _bgManager.ShowVideo();
                 //sfx
                 _audioManager.ResetAnswerSFX(ignoreOffset);
@@ -250,7 +250,7 @@ namespace MajdataViewX.Managers
                             throw new InvalidPathException($"maidata path is required");
                         }
 
-                        canvasButtons.SetActive(false);
+                        _canvasButtons.SetActive(false);
                         _allPerfectManager.enabled = true;
 
                         _bgManager.PlaySongDetail();
@@ -261,7 +261,7 @@ namespace MajdataViewX.Managers
                                 _timeProvider.SetStartTime(startAt, _currentOffset, speed, playmode, _setting.OutputFps);
                             }).ContinueWith(() =>
                         {
-                            canvasButtons.SetActive(true);
+                            _canvasButtons.SetActive(true);
                             _state = ViewStatus.Loaded;
                         }).Forget();
                         break;

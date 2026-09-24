@@ -15,7 +15,7 @@ namespace MajdataViewX.Managers
 {
     public class EffectManager : MonoBehaviour
     {
-        public const int EFFECT_COUNT = BUTTON_COUNT + SENSOR_COUNT;
+        private const int EFFECT_COUNT = BUTTON_COUNT + SENSOR_COUNT;
 
         private static readonly int PerfectHash = Animator.StringToHash("perfect");
         private static readonly int GreatHash = Animator.StringToHash("great");
@@ -25,27 +25,27 @@ namespace MajdataViewX.Managers
         private static readonly int BGoodHash = Animator.StringToHash("bGood");
         private static readonly int FireHash = Animator.StringToHash("fire");
 
-        [SerializeField]
-        GameObject effectPrefab;
+        [SerializeField] 
+        private GameObject effectPrefab = null!;
 
         public NativeArray<EffectData> judgeEffectRequests = new(EFFECT_COUNT, Allocator.Persistent);
         public unsafe EffectData* JudgeEffectRequestsPtr => (EffectData*)judgeEffectRequests.GetUnsafePtr();
 
-        private readonly Animator[] tapAnimators = new Animator[EFFECT_COUNT];
+        private readonly Animator[] _tapAnimators = new Animator[EFFECT_COUNT];
 
-        private readonly GameObject[] holdEffects = new GameObject[EFFECT_COUNT];
-        private readonly Material[] holdMaterials = new Material[EFFECT_COUNT];
+        private readonly GameObject[] _holdEffects = new GameObject[EFFECT_COUNT];
+        private readonly Material[] _holdMaterials = new Material[EFFECT_COUNT];
 
-        private readonly GameObject[] touchEffects = new GameObject[EFFECT_COUNT];
-        private readonly Animator[] touchAnimators = new Animator[EFFECT_COUNT];
+        private readonly GameObject[] _touchEffects = new GameObject[EFFECT_COUNT];
+        private readonly Animator[] _touchAnimators = new Animator[EFFECT_COUNT];
 
-        private readonly Animator[] judgeAnimators = new Animator[EFFECT_COUNT];
-        private readonly SpriteRenderer[] judgeRenderers = new SpriteRenderer[EFFECT_COUNT];
+        private readonly Animator[] _judgeAnimators = new Animator[EFFECT_COUNT];
+        private readonly SpriteRenderer[] _judgeRenderers = new SpriteRenderer[EFFECT_COUNT];
 
-        private readonly SpriteRenderer[] fastLateRenderers = new SpriteRenderer[EFFECT_COUNT];
+        private readonly SpriteRenderer[] _fastLateRenderers = new SpriteRenderer[EFFECT_COUNT];
 
-        private GameObject fireworkEffect;
-        private Animator fireworkAnimator;
+        private GameObject _fireworkEffect = null!;
+        private Animator _fireworkAnimator = null!;
 
         private void Awake()
         {
@@ -80,26 +80,26 @@ namespace MajdataViewX.Managers
                     parent.transform);
 
                 var tapEffect = effect.transform.GetChild(0).gameObject;
-                tapAnimators[i] = tapEffect.GetComponent<Animator>();
+                _tapAnimators[i] = tapEffect.GetComponent<Animator>();
                 if (i > 7) tapEffect.SetActive(false); // touch 部分的不要了 
 
-                holdEffects[i] = effect.transform.GetChild(1).gameObject;
-                holdMaterials[i] = holdEffects[i].GetComponent<ParticleSystemRenderer>().material;
-                holdEffects[i].SetActive(false);
+                _holdEffects[i] = effect.transform.GetChild(1).gameObject;
+                _holdMaterials[i] = _holdEffects[i].GetComponent<ParticleSystemRenderer>().material;
+                _holdEffects[i].SetActive(false);
 
-                touchEffects[i] = effect.transform.GetChild(2).gameObject;
-                touchEffects[i].transform.localEulerAngles = new Vector3(0, 0, -ang); // 回正
-                touchAnimators[i] = touchEffects[i].GetComponent<Animator>();
-                if (i <= 7) touchEffects[i].SetActive(false); // tap 部分的不要了 
+                _touchEffects[i] = effect.transform.GetChild(2).gameObject;
+                _touchEffects[i].transform.localEulerAngles = new Vector3(0, 0, -ang); // 回正
+                _touchAnimators[i] = _touchEffects[i].GetComponent<Animator>();
+                if (i <= 7) _touchEffects[i].SetActive(false); // tap 部分的不要了 
 
                 var judgeEffect = effect.transform.GetChild(3).gameObject;
-                judgeAnimators[i] = judgeEffect.GetComponent<Animator>();
-                judgeRenderers[i] = judgeEffect.transform.GetChild(0).GetChild(0).gameObject.GetComponent<SpriteRenderer>();
+                _judgeAnimators[i] = judgeEffect.GetComponent<Animator>();
+                _judgeRenderers[i] = judgeEffect.transform.GetChild(0).GetChild(0).gameObject.GetComponent<SpriteRenderer>();
                 judgeEffect.transform.GetChild(0).GetChild(1).gameObject.GetComponent<SpriteRenderer>().sprite = _noteSkinManager.JudgeText_BPerfect;
-                fastLateRenderers[i] = judgeEffect.transform.GetChild(1).GetChild(0).GetComponent<SpriteRenderer>();
+                _fastLateRenderers[i] = judgeEffect.transform.GetChild(1).GetChild(0).GetComponent<SpriteRenderer>();
 
-                fireworkEffect = GameObject.Find("FireworkEffect");
-                fireworkAnimator = fireworkEffect.GetComponent<Animator>();
+                _fireworkEffect = GameObject.Find("FireworkEffect");
+                _fireworkAnimator = _fireworkEffect.GetComponent<Animator>();
             }
         }
 
@@ -131,10 +131,10 @@ namespace MajdataViewX.Managers
                     }
                 }
 
-                holdEffects[i].SetActive(req.HasHolding);
+                _holdEffects[i].SetActive(req.HasHolding);
                 if (req.HasHolding)
                 {
-                    holdMaterials[i].SetColor("_Color", req.HoldingColor);
+                    _holdMaterials[i].SetColor("_Color", req.HoldingColor);
                 }
             }
 
@@ -149,16 +149,16 @@ namespace MajdataViewX.Managers
             {
                 case JudgeGrade.LateGood:
                 case JudgeGrade.FastGood:
-                    judgeRenderers[pos].sprite = _noteSkinManager.JudgeText[1];
+                    _judgeRenderers[pos].sprite = _noteSkinManager.JudgeText[1];
                     if (isBreak)
                     {
-                        tapAnimators[pos].speed = 0.9f;
-                        tapAnimators[pos].SetTrigger(BGoodHash);
+                        _tapAnimators[pos].speed = 0.9f;
+                        _tapAnimators[pos].SetTrigger(BGoodHash);
                     }
                     else
                     {
-                        tapAnimators[pos].speed = 1f;
-                        tapAnimators[pos].SetTrigger(GoodHash);
+                        _tapAnimators[pos].speed = 1f;
+                        _tapAnimators[pos].SetTrigger(GoodHash);
                     }
                     break;
                 case JudgeGrade.LateGreat3rd:
@@ -167,71 +167,71 @@ namespace MajdataViewX.Managers
                 case JudgeGrade.FastGreat3rd:
                 case JudgeGrade.FastGreat2nd:
                 case JudgeGrade.FastGreat1st:
-                    judgeRenderers[pos].sprite = _noteSkinManager.JudgeText[2];
+                    _judgeRenderers[pos].sprite = _noteSkinManager.JudgeText[2];
                     if (isBreak)
                     {
-                        tapAnimators[pos].speed = 0.9f;
-                        tapAnimators[pos].SetTrigger(BGreatHash);
+                        _tapAnimators[pos].speed = 0.9f;
+                        _tapAnimators[pos].SetTrigger(BGreatHash);
                     }
                     else
                     {
-                        tapAnimators[pos].speed = 1f;
-                        tapAnimators[pos].SetTrigger(GreatHash);
+                        _tapAnimators[pos].speed = 1f;
+                        _tapAnimators[pos].SetTrigger(GreatHash);
                     }
                     break;
                 case JudgeGrade.LatePerfect3rd:
                 case JudgeGrade.LatePerfect2nd:
                 case JudgeGrade.FastPerfect3rd:
                 case JudgeGrade.FastPerfect2nd:
-                    judgeRenderers[pos].sprite = _noteSkinManager.JudgeText[3];
+                    _judgeRenderers[pos].sprite = _noteSkinManager.JudgeText[3];
                     if (isBreak)
                     {
-                        tapAnimators[pos].speed = 0.9f;
-                        tapAnimators[pos].SetTrigger(BPerfectHash);
+                        _tapAnimators[pos].speed = 0.9f;
+                        _tapAnimators[pos].SetTrigger(BPerfectHash);
                     }
                     else
                     {
-                        tapAnimators[pos].speed = 1f;
-                        tapAnimators[pos].SetTrigger(PerfectHash);
+                        _tapAnimators[pos].speed = 1f;
+                        _tapAnimators[pos].SetTrigger(PerfectHash);
                     }
                     break;
                 case JudgeGrade.LateCritical:
                 case JudgeGrade.FastCritical:
-                    judgeRenderers[pos].sprite = _noteSkinManager.JudgeText[4];
+                    _judgeRenderers[pos].sprite = _noteSkinManager.JudgeText[4];
                     if (isBreak)
                     {
-                        tapAnimators[pos].speed = 0.9f;
-                        tapAnimators[pos].SetTrigger(BPerfectHash);
+                        _tapAnimators[pos].speed = 0.9f;
+                        _tapAnimators[pos].SetTrigger(BPerfectHash);
                     }
                     else
                     {
-                        tapAnimators[pos].speed = 1f;
-                        tapAnimators[pos].SetTrigger(PerfectHash);
+                        _tapAnimators[pos].speed = 1f;
+                        _tapAnimators[pos].SetTrigger(PerfectHash);
                     }
                     break;
                 default:
-                    judgeRenderers[pos].sprite = _noteSkinManager.JudgeText[0];
+                    _judgeRenderers[pos].sprite = _noteSkinManager.JudgeText[0];
                     break;
             }
 
             // Judge Anim
             if (isBreak && (judge is JudgeGrade.LateCritical or JudgeGrade.FastCritical))
-                judgeAnimators[pos].SetTrigger(BPerfectHash);
+                _judgeAnimators[pos].SetTrigger(BPerfectHash);
             else
-                judgeAnimators[pos].SetTrigger(PerfectHash);
+                _judgeAnimators[pos].SetTrigger(PerfectHash);
 
             // Fast / Late
             if (judge is JudgeGrade.Miss or JudgeGrade.LateCritical or JudgeGrade.FastCritical)
             {
-                fastLateRenderers[pos].sprite = null;
+                _fastLateRenderers[pos].sprite = null;
             }
             else
             {
                 var isFast = judge <= JudgeGrade.FastCritical;
                 if (isFast)
-                    fastLateRenderers[pos].sprite = _noteSkinManager.FastText;
+                    _fastLateRenderers[pos].sprite = _noteSkinManager.FastText;
                 else
-                    fastLateRenderers[pos].sprite = _noteSkinManager.LateText;
+                    _fastLateRenderers[pos].sprite = _noteSkinManager.LateText;
             }
         }
 
@@ -242,8 +242,8 @@ namespace MajdataViewX.Managers
             {
                 case JudgeGrade.LateGood:
                 case JudgeGrade.FastGood:
-                    judgeRenderers[pos].sprite = _noteSkinManager.JudgeText[1];
-                    touchAnimators[pos].SetTrigger(GoodHash);
+                    _judgeRenderers[pos].sprite = _noteSkinManager.JudgeText[1];
+                    _touchAnimators[pos].SetTrigger(GoodHash);
                     break;
                 case JudgeGrade.LateGreat3rd:
                 case JudgeGrade.LateGreat2nd:
@@ -251,44 +251,44 @@ namespace MajdataViewX.Managers
                 case JudgeGrade.FastGreat3rd:
                 case JudgeGrade.FastGreat2nd:
                 case JudgeGrade.FastGreat1st:
-                    judgeRenderers[pos].sprite = _noteSkinManager.JudgeText[2];
-                    touchAnimators[pos].SetTrigger(GreatHash);
+                    _judgeRenderers[pos].sprite = _noteSkinManager.JudgeText[2];
+                    _touchAnimators[pos].SetTrigger(GreatHash);
                     break;
                 case JudgeGrade.LatePerfect3rd:
                 case JudgeGrade.LatePerfect2nd:
                 case JudgeGrade.FastPerfect3rd:
                 case JudgeGrade.FastPerfect2nd:
-                    judgeRenderers[pos].sprite = _noteSkinManager.JudgeText[3];
-                    touchAnimators[pos].SetTrigger(PerfectHash);
+                    _judgeRenderers[pos].sprite = _noteSkinManager.JudgeText[3];
+                    _touchAnimators[pos].SetTrigger(PerfectHash);
                     break;
                 case JudgeGrade.LateCritical:
                 case JudgeGrade.FastCritical:
-                    judgeRenderers[pos].sprite = _noteSkinManager.JudgeText[4];
-                    touchAnimators[pos].SetTrigger(PerfectHash);
+                    _judgeRenderers[pos].sprite = _noteSkinManager.JudgeText[4];
+                    _touchAnimators[pos].SetTrigger(PerfectHash);
                     break;
                 default:
-                    judgeRenderers[pos].sprite = _noteSkinManager.JudgeText[0];
+                    _judgeRenderers[pos].sprite = _noteSkinManager.JudgeText[0];
                     break;
             }
 
             // Judge Anim
             if (isBreak && (judge is JudgeGrade.LateCritical or JudgeGrade.FastCritical))
-                judgeAnimators[pos].SetTrigger(BPerfectHash);
+                _judgeAnimators[pos].SetTrigger(BPerfectHash);
             else
-                judgeAnimators[pos].SetTrigger(PerfectHash);
+                _judgeAnimators[pos].SetTrigger(PerfectHash);
 
             // Fast / Late
             if (judge is JudgeGrade.Miss or JudgeGrade.LateCritical or JudgeGrade.FastCritical)
             {
-                fastLateRenderers[pos].sprite = null;
+                _fastLateRenderers[pos].sprite = null;
             }
             else
             {
                 var isFast = judge <= JudgeGrade.FastCritical;
                 if (isFast)
-                    fastLateRenderers[pos].sprite = _noteSkinManager.FastText;
+                    _fastLateRenderers[pos].sprite = _noteSkinManager.FastText;
                 else
-                    fastLateRenderers[pos].sprite = _noteSkinManager.LateText;
+                    _fastLateRenderers[pos].sprite = _noteSkinManager.LateText;
             }
         }
 
@@ -298,8 +298,8 @@ namespace MajdataViewX.Managers
             if (pos is < 0 or > EFFECT_COUNT) return;
             else if (pos < BUTTON_COUNT) worldPos = MajPos.GetBtnPos(pos);
             else worldPos = MajPos.GetAreaPos((SensorType)(pos - 8));
-            fireworkEffect.transform.position = new float3(worldPos, 0);
-            fireworkAnimator.SetTrigger(FireHash);
+            _fireworkEffect.transform.position = new float3(worldPos, 0);
+            _fireworkAnimator.SetTrigger(FireHash);
         }
 
         public void ResetState()

@@ -6693,7 +6693,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 706f87a89456f3342971fe2c6dbc2ce1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  DDResolution: {fileID: 569942662}
+  ddResolution: {fileID: 569942662}
 --- !u!1 &1245744161
 GameObject:
   m_ObjectHideFlags: 0
